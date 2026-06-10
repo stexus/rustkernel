@@ -1,0 +1,31 @@
+# Rust build artifacts
+/target
+
+# Nix build result symlinks
+result
+result-*
+
+# devenv / direnv
+.devenv/
+.devenv.flake.nix
+.direnv/
+
+# Kernel build outputs
+*.elf
+*.bin
+*.img
+*.iso
+*.map
+
+# QEMU
+*.qcow2
+*.snapshot
+
+# GDB
+.gdb_history
+gdb.txt
+
+# Editor
+.idea/
+*.swp
+*.swo
