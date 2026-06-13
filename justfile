@@ -1,7 +1,7 @@
 kernel := "target/aarch64-unknown-none/debug/rustkernel"
 
 qemu_base := "qemu-system-aarch64 \
-  -machine virt \
+  -machine virt,virtualization=on \
   -cpu cortex-a72 \
   -m 128M \
   -nographic \
@@ -19,3 +19,5 @@ debug: build
 # Build the kernel
 build:
     cargo build
+clean:
+    cargo clean
