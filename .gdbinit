@@ -8,7 +8,7 @@ file target/aarch64-unknown-none/debug/rustkernel
 target remote :1234
 
 # Break at the first Rust entry point
-break kernel_main
-
-# Let it run until the breakpoint
-continue
+# break kernel_main
+#
+# # Let it run until the breakpoint
+# continue
