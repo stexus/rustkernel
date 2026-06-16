@@ -38,31 +38,35 @@
       ];
 
       # gdb is unavailable on Darwin; fall back to lldb.
-      debugger = if pkgs.stdenv.isDarwin then pkgs.lldb else pkgs.gdb;
+      debugger =
+        if pkgs.stdenv.isDarwin
+        then pkgs.lldb
+        else pkgs.gdb;
     in {
       default = pkgs.mkShell ({
-        name = "rustkernel";
+          name = "rustkernel";
 
-        packages =
-          [
-            rust-toolchain
-            pkgs.qemu
-            debugger
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            # Provides ld.lld with correct Nix-store rpaths (see CARGO_TARGET_… below).
-            pkgs.llvmPackages_latest.lld
-          ];
+          packages =
+            [
+              rust-toolchain
+              pkgs.qemu
+              debugger
+              pkgs.dtc
+            ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              # Provides ld.lld with correct Nix-store rpaths (see CARGO_TARGET_… below).
+              pkgs.llvmPackages_latest.lld
+            ];
 
-        # Teach rust-analyzer where the standard library source lives.
-        RUST_SRC_PATH = "${pkgs.fenix.complete.rust-src}/lib/rustlib/src/rust/library";
-      }
-      // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
-        # The rust-lld bundled with the fenix toolchain is a macOS binary built on
-        # the Rust CI runner; its @rpath points at /Users/runner/… which doesn't
-        # exist here.  Tell Cargo to use the Nix-packaged ld.lld instead.
-        CARGO_TARGET_AARCH64_UNKNOWN_NONE_LINKER = "ld.lld";
-      });
+          # Teach rust-analyzer where the standard library source lives.
+          RUST_SRC_PATH = "${pkgs.fenix.complete.rust-src}/lib/rustlib/src/rust/library";
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          # The rust-lld bundled with the fenix toolchain is a macOS binary built on
+          # the Rust CI runner; its @rpath points at /Users/runner/… which doesn't
+          # exist here.  Tell Cargo to use the Nix-packaged ld.lld instead.
+          CARGO_TARGET_AARCH64_UNKNOWN_NONE_LINKER = "ld.lld";
+        });
     });
   };
 }
