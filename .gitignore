@@ -24,6 +24,8 @@ result-*
 # GDB
 .gdb_history
 gdb.txt
+# Regenerated per-run by `just debug NAME`
+.gdbinit
 
 # Editor
 .idea/
