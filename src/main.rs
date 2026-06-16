@@ -29,6 +29,15 @@ unsafe fn init_vbar_el1() {
         )
     }
 }
+pub fn shutdown() {
+    unsafe {
+        asm!(
+            "mov x0, {0}",
+            "smc #0",
+            in(reg) 0x84000008_u64,
+        );
+    }
+}
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
     unsafe {
