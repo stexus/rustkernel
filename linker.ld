@@ -6,7 +6,7 @@ SECTIONS
     .text : {
         *(.text._start)
         . = ALIGN(2048);
-        *(.text._vbar)
+        *(.text.vbar)
         *(.text*)
     }
 
