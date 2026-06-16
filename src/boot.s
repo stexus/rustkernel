@@ -33,3 +33,72 @@ msr spsr_el2, x0
 
 eret
 
+.align 11
+.section .text.vbar
+.global vbar_entry
+vbar_entry:
+# will need 16 sections of 128bytes each (2^7 * 2^4 = 2^11 or 2048 bytes)
+.org 0x000
+1:
+wfe
+b 1b
+.org 0x080
+1:
+wfe
+b 1b
+.org 0x100
+1:
+wfe
+b 1b
+.org 0x180
+1:
+wfe
+b 1b
+.org 0x200
+1:
+wfe
+b 1b
+.org 0x280
+1:
+wfe
+b 1b
+.org 0x300
+1:
+wfe
+b 1b
+.org 0x380
+1:
+wfe
+b 1b
+.org 0x400
+1:
+wfe
+b 1b
+.org 0x480
+1:
+wfe
+b 1b
+.org 0x500
+1:
+wfe
+b 1b
+.org 0x580
+1:
+wfe
+b 1b
+.org 0x600
+1:
+wfe
+b 1b
+.org 0x680
+1:
+wfe
+b 1b
+.org 0x700
+1:
+wfe
+b 1b
+.org 0x780
+1:
+wfe
+b 1b
