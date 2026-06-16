@@ -33,10 +33,17 @@ unsafe fn init_vbar_el1() {
     }
 }
 #[unsafe(no_mangle)]
+pub extern "C" fn interrupt_handler(esr: u64, far: u64) -> ! {
+    uart::write_reg("esr", esr);
+    uart::write_reg("far", far);
+    loop {}
+}
+#[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
     unsafe {
         init_sctlr_el1();
         init_vbar_el1();
+        asm!("ldr x0, [{}]", in(reg) 0xdeadbeaf_u64);
     }
     uart::write_str("Hello World????????\n");
     loop {}

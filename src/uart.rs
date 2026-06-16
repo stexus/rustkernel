@@ -36,3 +36,25 @@ pub fn write_str(str: &str) {
         write_byte(b);
     }
 }
+/// Write a u64 value to the UART as a zero-padded hex string, e.g. `0x000000004008F000`.
+pub fn print_hex_u64(val: u64) {
+    const HEX_DIGITS: &[u8] = b"0123456789ABCDEF";
+    write_byte(b'0');
+    write_byte(b'x');
+    // Emit all 16 nibbles, most-significant first.
+    for shift in (0..16).rev() {
+        let nibble = ((val >> (shift * 4)) & 0xF) as usize;
+        write_byte(HEX_DIGITS[nibble]);
+    }
+}
+
+/// Write a labelled register value to the UART as a human-readable string.
+///
+/// Output format: `"<label>: 0x<16-digit hex>\r\n"`
+/// e.g. `write_reg("PC", 0x4008_F000)` → `PC: 0x000000004008F000`
+pub fn write_reg(label: &str, reg: u64) {
+    write_str(label);
+    write_str(": ");
+    print_hex_u64(reg);
+    write_str("\r\n");
+}
