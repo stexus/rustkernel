@@ -2,8 +2,9 @@
 
 use core::{arch::asm, panic::PanicInfo};
 
-pub mod uart;
 mod interrupt_handler;
+pub mod memory;
+pub mod uart;
 
 core::arch::global_asm!(include_str!("boot.s"));
 
@@ -43,6 +44,7 @@ pub fn init() {
 
 /// Power off via PSCI SYSTEM_OFF (QEMU exits).
 pub fn shutdown() -> ! {
+    uart::write_str("rustkernel shutting down\n");
     unsafe {
         asm!(
             "mov x0, {0}",
