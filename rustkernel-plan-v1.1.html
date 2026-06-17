@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rustkernel/aarch64 — Plan of Record</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #0C1117;
+      --surface:      #131B25;
+      --surface-2:    #1A2535;
+      --border:       #1E2D3D;
+      --border-lt:    #253748;
+      --orange:       #E8760A;
+      --orange-dim:   rgba(232,118,10,0.12);
+      --blue:         #4A9EFF;
+      --blue-dim:     rgba(74,158,255,0.10);
+      --green:        #3FB950;
+      --green-dim:    rgba(63,185,80,0.10);
+      --text:         #CDD9E5;
+      --text-muted:   #768A9C;
+      --text-dim:     #3D5468;
+      --mono: 'JetBrains Mono','Fira Code','Consolas',monospace;
+      --sans: 'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.65;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: 224px;
+      min-width: 224px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    .sb-brand {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sb-brand .b-name {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+    .sb-brand .b-sub {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .sb-nav { padding: 10px 0; flex: 1; }
+    .sb-nav .nav-group-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-dim);
+      padding: 8px 20px 4px;
+    }
+    .sb-nav a {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 20px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      transition: all .15s;
+      border-left: 2px solid transparent;
+    }
+    .sb-nav a:hover { color: var(--text); background: var(--surface-2); }
+    .sb-nav a.active { color: var(--orange); border-left-color: var(--orange); background: var(--orange-dim); }
+    .nav-pn { font-family: var(--mono); font-size: 11px; color: var(--text-dim); min-width: 20px; }
+    .nav-pr { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+    .sb-meta {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .sb-meta .mr {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      align-items: baseline;
+    }
+    .sb-meta .mk { color: var(--text-dim); font-size: 11px; }
+    .sb-meta .mv { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+
+    /* ─── MAIN ─── */
+    .main { margin-left: 224px; flex: 1; max-width: calc(100% - 224px); }
+
+    /* ─── PAGE HEADER ─── */
+    .pg-header {
+      padding: 52px 60px 44px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pg-header .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--orange);
+      margin-bottom: 14px;
+    }
+    .pg-header h1 {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+    .pg-header .subtitle {
+      font-size: 15px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin-bottom: 28px;
+    }
+    .north-star {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--blue);
+      border-radius: 6px;
+      padding: 14px 18px;
+      max-width: 660px;
+      font-size: 13.5px;
+      color: var(--text);
+      margin-bottom: 40px;
+    }
+    .north-star strong {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--blue);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    /* ─── PIPELINE ─── */
+    .pipeline {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .pl-stage { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+    .pl-stage a { text-decoration: none; }
+    .pl-box {
+      background: var(--surface);
+      border: 1px solid var(--border-lt);
+      border-radius: 6px;
+      padding: 9px 14px;
+      text-align: center;
+      transition: all .15s;
+      min-width: 84px;
+    }
+    .pl-box:hover { border-color: var(--orange); background: var(--orange-dim); }
+    .pl-box.core { border-color: rgba(232,118,10,.45); }
+    .pl-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+    .pl-box.core .pl-num { color: var(--orange); }
+    .pl-name { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text); }
+    .pl-wk { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+    .pl-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+    .pl-arrow { color: var(--text-dim); font-size: 14px; padding: 0 3px; margin-top: 9px; flex-shrink: 0; font-family: var(--mono); }
+
+    /* ─── PHASE ─── */
+    .phase { padding: 52px 60px; border-bottom: 1px solid var(--border); }
+    .ph-header { display: flex; align-items: flex-start; gap: 22px; margin-bottom: 26px; }
+    .ph-num {
+      font-family: var(--mono);
+      font-size: 52px;
+      font-weight: 700;
+      color: var(--border-lt);
+      line-height: 1;
+      min-width: 72px;
+      user-select: none;
+    }
+    .ph-title { }
+    .ph-title h2 {
+      font-family: var(--mono);
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .ph-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ph-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-lt);
+      color: var(--text-muted);
+    }
+    .ph-tag.core { border-color: rgba(232,118,10,.5); color: var(--orange); background: var(--orange-dim); }
+
+    /* ─── GOAL ─── */
+    .ph-goal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 15px 20px;
+      margin-bottom: 30px;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .ph-goal .gl { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin-bottom: 6px; }
+
+    /* ─── SECTION LABEL ─── */
+    .sl {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sl::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    /* ─── MILESTONES ─── */
+    .milestones { list-style: none; margin-bottom: 30px; display: flex; flex-direction: column; gap: 7px; }
+    .ms { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.5; }
+    .ms input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      border: 1.5px solid var(--border-lt);
+      border-radius: 3px;
+      background: var(--surface);
+      margin-top: 3px;
+      cursor: pointer;
+      transition: all .15s;
+      position: relative;
+    }
+    .ms input[type="checkbox"]:checked { background: var(--green); border-color: var(--green); }
+    .ms input[type="checkbox"]:checked::after {
+      content:'';
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 6px; height: 10px;
+      border: 2px solid #0C1117;
+      border-top: none; border-left: none;
+      transform: rotate(45deg);
+    }
+    .ms label { cursor: pointer; color: var(--text); transition: color .15s; }
+    .ms.done label { color: var(--text-dim); text-decoration: line-through; }
+    .ms code, .ms label code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface-2);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--blue);
+    }
+
+    /* ─── CONCEPTS ─── */
+    .concepts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; }
+    .ctag {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 4px 9px;
+      background: var(--blue-dim);
+      border: 1px solid rgba(74,158,255,.2);
+      border-radius: 4px;
+      color: var(--blue);
+    }
+
+    /* ─── OSTEP ─── */
+    .ostep-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 13px 17px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      font-size: 13.5px;
+    }
+    .ostep-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 7px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-lt);
+      border-radius: 4px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ostep-row p { color: var(--text-muted); }
+    .ostep-row strong { color: var(--text); font-weight: 600; }
+    .ostep-row em { color: var(--text-muted); font-style: italic; }
+
+    /* ─── HARDWARE DEEP DIVE ─── */
+    .hw-dive {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--orange);
+      border-radius: 0 0 8px 8px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .hw-head {
+      background: var(--orange-dim);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hw-head span {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--orange);
+    }
+    .hw-body {
+      padding: 20px 22px;
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .hw-body p { margin-bottom: 11px; }
+    .hw-body p:last-child { margin-bottom: 0; }
+    .hw-body strong { color: var(--orange); font-weight: 600; }
+    .hw-body code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface-2);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+    .reg {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 13px 16px;
+      margin: 13px 0;
+      overflow-x: auto;
+      line-height: 1.9;
+      white-space: pre;
+    }
+    .reg .hl  { color: var(--orange); }
+    .reg .hl2 { color: var(--blue); }
+    .reg .cm  { color: var(--text-dim); }
+
+    /* ─── RESOURCES ─── */
+    .resources { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 4px; }
+    .rlink {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 11px 14px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      transition: all .15s;
+    }
+    .rlink:hover { border-color: var(--blue); background: var(--blue-dim); }
+    .rlink .ri { font-size: 15px; flex-shrink: 0; }
+    .rlink .rn { font-weight: 500; display: block; color: var(--text); font-size: 13px; }
+    .rlink .rd { font-size: 11px; color: var(--text-muted); display: block; }
+
+    /* ─── FOOTER ─── */
+    .pg-footer {
+      padding: 44px 60px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .ft-title { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 14px; }
+    .cmd-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 15px 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 2.1;
+      max-width: 680px;
+      margin-bottom: 28px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .cmd-block .cm  { color: var(--text-dim); }
+    .cmd-block .cmd { color: var(--green); }
+    .cmd-block .fl  { color: var(--blue); }
+    .ft-note { font-size: 12px; color: var(--text-dim); font-family: var(--mono); margin-top: 10px; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 820px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; max-width: 100%; }
+      .phase, .pg-header, .pg-footer { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="b-name">rustkernel</div>
+    <div class="b-sub">aarch64 · qemu · no_std</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-group-label">Phases</div>
+    <a href="#ph0" id="nav-0"><span class="nav-pn">P0</span>Foundations<span class="nav-pr" id="pr-0"></span></a>
+    <a href="#ph1" id="nav-1"><span class="nav-pn">P1</span>Exc. Levels<span class="nav-pr" id="pr-1"></span></a>
+    <a href="#ph2" id="nav-2"><span class="nav-pn">P2</span>Phys. Memory<span class="nav-pr" id="pr-2"></span></a>
+    <a href="#ph3" id="nav-3"><span class="nav-pn">P3</span>Virt. Memory<span class="nav-pr" id="pr-3"></span></a>
+    <a href="#ph4" id="nav-4"><span class="nav-pn">P4</span>Kernel Heap<span class="nav-pr" id="pr-4"></span></a>
+    <a href="#ph5" id="nav-5"><span class="nav-pn">P5</span>Interrupts<span class="nav-pr" id="pr-5"></span></a>
+    <a href="#ph6" id="nav-6"><span class="nav-pn">P6</span>Scheduling<span class="nav-pr" id="pr-6"></span></a>
+    <a href="#ph7" id="nav-7"><span class="nav-pn">P7</span>Concurrency<span class="nav-pr" id="pr-7"></span></a>
+    <a href="#ph8" id="nav-8"><span class="nav-pn">P8</span>Filesystem<span class="nav-pr" id="pr-8"></span></a>
+    <a href="#ph9" id="nav-9"><span class="nav-pn">P9</span>ELF Loading<span class="nav-pr" id="pr-9"></span></a>
+    <div class="nav-group-label" style="margin-top:8px">Reference</div>
+    <a href="#footer"><span class="nav-pn">—</span>Quick Ref</a>
+  </nav>
+  <div class="sb-meta">
+    <div class="mr"><span class="mk">arch</span><span class="mv">aarch64</span></div>
+    <div class="mr"><span class="mk">target</span><span class="mv">qemu virt</span></div>
+    <div class="mr"><span class="mk">total</span><span class="mv">~250 hrs</span></div>
+    <div class="mr"><span class="mk">pace</span><span class="mv">10+ hrs/wk</span></div>
+    <div class="mr"><span class="mk">textbook</span><span class="mv">OSTEP</span></div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════ MAIN -->
+<main class="main">
+
+  <!-- ── PAGE HEADER ── -->
+  <header class="pg-header">
+    <div class="eyebrow">Plan of Record · v1.1 · AArch64 Kernel in Rust</div>
+    <h1>Building an AArch64 OS Kernel<br>from Scratch in Rust</h1>
+    <p class="subtitle">A from-scratch kernel on QEMU's ARM virt machine. The goal isn't just to build something that boots — it's to understand <em>why the hardware is the way it is</em>.</p>
+
+    <div class="north-star">
+      <strong>⊕ North Star — Hardware/Software Co-Design</strong>
+      Every implementation milestone maps to a hardware question. When you write a TLB invalidation, you should know why TLBs exist and why they're expensive on multicore. When you write a spinlock, you should understand why ARM's memory model is weaker than x86's — and what that costs you. The OS is the hardware's first client.
+    </div>
+
+    <div class="north-star" style="margin-top:12px">
+      <strong>⚒ Ground Rule — Everything By Hand</strong>
+      No helper crates: no <code>aarch64-cpu</code>, no <code>tock-registers</code>, no <code>fdt</code>, no <code>elf</code> parsers. Every MSR/MRS is inline asm you wrote; every MMIO register is a <code>write_volatile</code> at an address you verified in the DTB; every on-disk struct is a <code>#[repr(C)]</code> you laid out. Slower — and exactly the point.
+    </div>
+
+    <div class="pipeline">
+      <div class="pl-stage">
+        <a href="#ph0"><div class="pl-box core"><div class="pl-num">P0</div><div class="pl-name">BOOT</div><div class="pl-wk">Wk 1–2</div></div></a>
+        <div class="pl-label">Foundations</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph1"><div class="pl-box core"><div class="pl-num">P1</div><div class="pl-name">EL</div><div class="pl-wk">Wk 3–4</div></div></a>
+        <div class="pl-label">Exc. Levels</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph2"><div class="pl-box core"><div class="pl-num">P2</div><div class="pl-name">PMEM</div><div class="pl-wk">Wk 5–6</div></div></a>
+        <div class="pl-label">Phys. Mem</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph3"><div class="pl-box core"><div class="pl-num">P3</div><div class="pl-name">VMM</div><div class="pl-wk">Wk 7–10</div></div></a>
+        <div class="pl-label">Virt. Mem</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph4"><div class="pl-box core"><div class="pl-num">P4</div><div class="pl-name">HEAP</div><div class="pl-wk">Wk 11</div></div></a>
+        <div class="pl-label">Kern. Heap</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph5"><div class="pl-box"><div class="pl-num">P5</div><div class="pl-name">IRQ</div><div class="pl-wk">Wk 12–13</div></div></a>
+        <div class="pl-label">Interrupts</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph6"><div class="pl-box"><div class="pl-num">P6</div><div class="pl-name">SCHED</div><div class="pl-wk">Wk 14–16</div></div></a>
+        <div class="pl-label">Scheduling</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph7"><div class="pl-box"><div class="pl-num">P7</div><div class="pl-name">SYNC</div><div class="pl-wk">Wk 17–19</div></div></a>
+        <div class="pl-label">Concurrency</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph8"><div class="pl-box"><div class="pl-num">P8</div><div class="pl-name">FS</div><div class="pl-wk">Wk 20–22</div></div></a>
+        <div class="pl-label">Filesystem</div>
+      </div>
+      <div class="pl-arrow">→</div>
+      <div class="pl-stage">
+        <a href="#ph9"><div class="pl-box"><div class="pl-num">P9</div><div class="pl-name">USER</div><div class="pl-wk">Wk 23–24</div></div></a>
+        <div class="pl-label">ELF / Exec</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════ PHASE 0 -->
+  <section class="phase" id="ph0">
+    <div class="ph-header">
+      <div class="ph-num">00</div>
+      <div class="ph-title">
+        <h2>Foundations &amp; Toolchain</h2>
+        <div class="ph-meta">
+          <span class="ph-tag core">Core Path</span>
+          <span class="ph-tag">Weeks 1–2</span>
+          <span class="ph-tag">~20 hrs</span>
+          <span class="ph-tag">no_std · UART · MMIO</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Stand up the dev environment and produce your first bytes on a virtual machine. Before any OS concept, understand what your Rust binary actually <em>is</em> at machine level: no runtime, no heap, no OS underneath you.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-0">
+      <li class="ms"><input type="checkbox" data-k="0-0"><label>Install QEMU 8.x, verify with <code>qemu-system-aarch64 --version</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="0-7"><label>Dump the device tree: <code>-machine virt,virtualization=on,dumpdtb=virt.dtb</code>, decompile with <code>dtc -I dtb virt.dtb</code> — verify the UART, GIC, and RAM addresses yourself rather than trusting any tutorial (including this one)</label></li>
+      <li class="ms"><input type="checkbox" data-k="0-1"><label>Run <code>rustup target add aarch64-unknown-none</code> — confirm cross-compilation works</label></li>
+      <li class="ms"><input type="checkbox" data-k="0-2"><label>Write a minimal <code>#![no_std] #![no_main]</code> crate — inventory what you lose from std</label></li>
+      <li class="ms"><input type="checkbox" data-k="0-3"><label>Write a linker script (.ld) placing the kernel at <code>0x4000_0000</code> (QEMU virt DRAM load address)</label></li>
+      <li class="ms"><input type="checkbox" data-k="0-4"><label>Implement a minimal PL011 UART driver using <code>write_volatile</code> at <code>0x0900_0000</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="0-5"><label>"Hello from bare metal AArch64!" visible in QEMU serial output — this is your milestone 0</label></li>
+      <li class="ms"><input type="checkbox" data-k="0-6"><label>Set up GDB + QEMU remote debugging (<code>-s -S</code> flags); write a <code>.gdbinit</code> — GDB is your primary tool for the rest of the project</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">#![no_std]</span><span class="ctag">#![no_main]</span><span class="ctag">extern "C"</span><span class="ctag">core crate</span><span class="ctag">write_volatile</span><span class="ctag">read_volatile</span><span class="ctag">unsafe blocks</span><span class="ctag">linker scripts</span><span class="ctag">build.rs</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Preface + Ch. 1–2</strong> — light reading for framing. OSTEP's core message is that the OS is a resource manager and a set of abstractions. The hands-on grounding this phase is the rust-embedded book.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ MMIO, UART, and the QEMU virt machine</span></div>
+      <div class="hw-body">
+        <p><strong>Why UART?</strong> UART is used universally for early OS debug because it requires no driver stack — it's a direct memory-mapped register. Write one byte to one address; the hardware serializes it. No interrupts, no DMA, no buffer management. This is why every OS tutorial in history starts here.</p>
+        <p><strong>MMIO vs. Port I/O:</strong> x86 has two ways to talk to devices: port I/O (<code>in</code>/<code>out</code> instructions, a separate 64KB address space) and MMIO (devices appear as ordinary memory addresses). ARM has only MMIO — a deliberate ISA design choice that simplifies the bus architecture and allows normal load/store instructions to reach peripherals. This is why AArch64 has no dedicated I/O instructions.</p>
+        <div class="reg"><span class="cm">QEMU virt machine memory map (simplified):</span>
+<span class="hl">0x0000_0000</span>–0x0800_0000  <span class="hl2">Flash / ROM</span>      QEMU firmware
+<span class="hl">0x0800_0000</span>              <span class="hl2">GICv2</span>            interrupt controller (Phase 5)
+<span class="hl">0x0900_0000</span>              <span class="hl2">PL011 UART</span>       ← your console
+<span class="hl">0x4000_0000</span>–end of RAM   <span class="hl2">DRAM</span>             ← kernel loads here</div>
+        <p><strong>Which EL does QEMU start you at?</strong> Real ARM hardware boots at EL3 (Secure Monitor), drops through EL2, and hands the OS control at EL1. Plain <code>-machine virt</code> skips all of that and starts your kernel directly at EL1 — convenient, but you'd never touch the privileged boot path. This plan boots with <code>-machine virt,virtualization=on</code>, which starts you at EL2 so Phase 1 makes you perform the EL2 → EL1 drop yourself, exactly as real boot firmware does. Verify with <code>CurrentEL</code> as your first instruction.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Why does UART debugging need no driver stack — what is the hardware doing with that one byte?</li>
+        <li>With <code>std</code> gone, who calls your entry point, and what decided its load address?</li>
+        <li>Why must MMIO use <code>write_volatile</code> — what is the compiler otherwise allowed to do to your UART writes?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://docs.rust-embedded.org/book/" target="_blank"><span class="ri">📘</span><span><span class="rn">The Embedded Rust Book</span><span class="rd">no_std, HAL, bare metal foundations</span></span></a>
+      <a class="rlink" href="https://github.com/rust-embedded/rust-raspberrypi-OS-tutorials" target="_blank"><span class="ri">🍓</span><span><span class="rn">rust-rpi-OS-tutorials</span><span class="rd">AArch64 kernel series, excellent reference</span></span></a>
+      <a class="rlink" href="https://wiki.qemu.org/Documentation/Platforms/ARM" target="_blank"><span class="ri">🖥</span><span><span class="rn">QEMU ARM Platform Docs</span><span class="rd">virt machine memory map and config</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 1 -->
+  <section class="phase" id="ph1">
+    <div class="ph-header">
+      <div class="ph-num">01</div>
+      <div class="ph-title">
+        <h2>Boot Sequence &amp; Exception Levels</h2>
+        <div class="ph-meta">
+          <span class="ph-tag core">Core Path</span>
+          <span class="ph-tag">Weeks 3–4</span>
+          <span class="ph-tag">~25 hrs</span>
+          <span class="ph-tag">EL2→EL1 · VBAR · PSTATE · SPSR</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Own the CPU's privilege state from the first instruction. Understand why protection levels are a hardware feature enforced in silicon — not a software convention — and implement the exception vector table that makes your kernel robust to faults.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-1">
+      <li class="ms"><input type="checkbox" data-k="1-0"><label>Write an assembly bootstrap: initialize stack pointer per EL, zero BSS segment, jump to Rust <code>kmain()</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="1-1"><label>Drop from EL2 → EL1 via <code>eret</code>: configure <code>HCR_EL2</code> (RW bit), set <code>SPSR_EL2</code> and <code>ELR_EL2</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="1-2"><label>Configure <code>SCTLR_EL1</code>: cache and coherency bits only, MMU still off</label></li>
+      <li class="ms"><input type="checkbox" data-k="1-3"><label>Define the exception vector table — 4 sources (current EL/SP0, current EL/SPx, lower EL AArch64, lower EL AArch32) × 4 types (sync, IRQ, FIQ, SError) = 16 entries, 128 bytes apart, 2KB aligned; set <code>VBAR_EL1</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="1-4"><label>Handle synchronous exceptions: decode <code>ESR_EL1</code> (EC field), print fault class and <code>FAR_EL1</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="1-5"><label>Implement a Rust panic handler that dumps all GPRs over UART</label></li>
+      <li class="ms"><input type="checkbox" data-k="1-6"><label>Deliberately trigger a fault (write to unmapped address); confirm handler fires and halts cleanly</label></li>
+      <li class="ms"><input type="checkbox" data-k="1-7"><label>Implement clean shutdown: PSCI <code>SYSTEM_OFF</code> call (conduit is <code>SMC</code> or <code>HVC</code> — read it from your DTB) — your kernel can now terminate the QEMU VM on demand</label></li>
+      <li class="ms"><input type="checkbox" data-k="1-8"><label>Write a <code>make test</code> harness: boot QEMU headless, scan serial output for a success/panic marker, exit nonzero on failure — this becomes your regression suite for every later phase</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">global_asm!</span><span class="ctag">core::arch::asm!</span><span class="ctag">#[repr(C)]</span><span class="ctag">raw pointer casts</span><span class="ctag">#[naked] functions</span><span class="ctag">core::fmt::Write</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 4</strong> (The Abstraction: The Process) + <strong>Ch. 6</strong> (Limited Direct Execution) — Ch. 6 explains precisely why hardware privilege levels are necessary for OS isolation. This is the theory behind what you're implementing.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Why Exception Levels Exist — The Hardware Argument</span></div>
+      <div class="hw-body">
+        <p><strong>The hardware motivation:</strong> Without privilege separation, any user program could write to kernel memory, reconfigure the MMU, or disable interrupts. The CPU enforces isolation in silicon. This isn't policy — it's physics. The ISA defines which registers and instructions are accessible at each privilege level, and violations trap synchronously.</p>
+        <div class="reg"><span class="cm">AArch64 Exception Level Stack:</span>
+┌──────────────────────────────────────────────────┐
+│  <span class="hl">EL3</span>  Secure Monitor — TrustZone / Secure Enclave  │  ← Not used in this project
+│  <span class="hl">EL2</span>  Hypervisor                                    │  ← QEMU starts you here
+│  <span class="hl">EL1</span>  OS Kernel                                      │  ← YOUR kernel lives here
+│  <span class="hl">EL0</span>  User Applications                               │  ← Added in Phase 6
+└──────────────────────────────────────────────────┘
+Higher EL = more privilege = more hardware access</div>
+        <p><strong>AArch64 vs. x86:</strong> x86 defined four protection rings (0–3) but modern OSes use only ring 0 (kernel) and ring 3 (user). ARM's design is cleaner: EL0–EL3 are explicitly defined for user/kernel/hypervisor/secure-monitor. ARM added a dedicated hypervisor mode (Hyp in ARMv7-A's Virtualization Extensions, which became EL2 in ARMv8) specifically because virtualization without hardware support was a performance disaster — the OS had to trap every privileged instruction. x86 added VMX later, and it's still baroque by comparison.</p>
+        <p><strong>TrustZone and Apple's Secure Enclave:</strong> EL3 plus the Secure world is TrustZone — ARM's standard mechanism for code that even the kernel cannot touch (boot firmware, key storage, DRM). Apple's SEP, notably, is <em>not</em> TrustZone: it's a physically separate coprocessor with its own CPU, SRAM, and boot ROM. Apple chose discrete silicon over a privilege level because a separate processor stays isolated even if EL3 firmware on the application cores is compromised. The lesson is the one this project keeps teaching: isolation guarantees come from hardware design, and there's a spectrum — privilege levels, TrustZone worlds, separate silicon — each trading cost for assurance.</p>
+        <p><strong>PSTATE:</strong> AArch64 exposes the current CPU state as <code>PSTATE</code> — a collection of flags: N/Z/C/V (condition codes), DAIF (interrupt masks), SPSel (stack pointer select), and the current EL. Saving and restoring PSTATE correctly is what makes a context switch transparent to a task. Phase 6 will save it explicitly.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>What exactly does <code>eret</code> restore, and from which two registers?</li>
+        <li>Why must the vector table be 2KB-aligned — what does the hardware do with the low bits of <code>VBAR_EL1</code>?</li>
+        <li>Why can privilege separation not be implemented in software alone?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/den0024/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">ARM Cortex-A Programmer's Guide</span><span class="rd">Exception levels, boot, system registers</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/ddi0487/latest/" target="_blank"><span class="ri">📚</span><span><span class="rn">ARM Architecture Reference Manual</span><span class="rd">Definitive AArch64 ISA spec (free from ARM)</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 2 -->
+  <section class="phase" id="ph2">
+    <div class="ph-header">
+      <div class="ph-num">02</div>
+      <div class="ph-title">
+        <h2>Physical Memory &amp; Frame Allocator</h2>
+        <div class="ph-meta">
+          <span class="ph-tag core">Core Path</span>
+          <span class="ph-tag">Weeks 5–6</span>
+          <span class="ph-tag">~20 hrs</span>
+          <span class="ph-tag">bitmap allocator · PhysAddr newtypes · DTB</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Know and manage every byte of physical RAM. Before virtual memory can exist, you need a physical frame allocator that tracks which pages are free, reserved, or hardware-mapped. This is where Rust's type system earns its first real dividend.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-2">
+      <li class="ms"><input type="checkbox" data-k="2-0"><label>Map out the QEMU virt physical address space: hardcode firmware, UART, GIC, and DRAM regions</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-1"><label>Define <code>PhysAddr</code> and <code>VirtAddr</code> newtypes — make accidental address-type mixing a compile error</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-2"><label>Implement a bitmap physical frame allocator: one bit per 4KB frame, alloc/free, O(1) amortized</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-3"><label>Reserve frames at init: kernel .text/.data/.bss, UART region, GIC region, firmware</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-4"><label>Verify with GDB: inspect the bitmap in memory, alloc a frame, confirm the correct bit flips</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-5"><label>(Stretch) Implement a buddy allocator for power-of-two frame counts with O(log n) alloc/free</label></li>
+      <li class="ms"><input type="checkbox" data-k="2-6"><label>(Stretch) Parse the DTB <code>/memory</code> node at boot to size RAM dynamically instead of hardcoding — by hand, no <code>fdt</code> crate</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">newtype pattern</span><span class="ctag">unsafe raw pointers</span><span class="ctag">bitwise ops</span><span class="ctag">const generics (PAGE_SIZE)</span><span class="ctag">MaybeUninit&lt;T&gt;</span><span class="ctag">core::slice::from_raw_parts</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 13</strong> (Address Spaces) + <strong>Ch. 14–15</strong> (Memory API, Address Translation Mechanism) — read these before implementing the frame allocator. They explain why physical memory management must precede virtual memory.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Why 4KB Pages? Granule Size, Cache Lines, and Apple's 16KB Choice</span></div>
+      <div class="hw-body">
+        <p><strong>The 4KB page is not fundamental — it's a tradeoff.</strong> AArch64 supports three granule sizes: 4KB, 16KB, and 64KB. The granule controls page table tree depth, TLB coverage per entry, and internal fragmentation per allocation.</p>
+        <div class="reg"><span class="cm">Granule size tradeoffs (48-bit VA, AArch64):</span>
+Granule  Table levels  TLB coverage/entry  Internal frag (1B alloc)
+<span class="hl">4 KB</span>         4               4 KB          up to 4,095 B wasted
+<span class="hl">16 KB</span>        3              16 KB          up to 16,383 B wasted  <span class="hl2">← Apple Silicon</span>
+<span class="hl">64 KB</span>        3              64 KB          up to 65,535 B wasted</div>
+        <p><strong>Apple Silicon uses 16KB pages</strong> — this is why macOS/iOS have 16KB alignment requirements. Larger pages reduce TLB pressure (fewer entries needed to cover the same virtual range), which matters enormously when processes have large address spaces (Xcode, Final Cut Pro). The tradeoff is higher internal fragmentation, but Apple's memory allocators are tuned for it. This is a direct example of a microarchitectural decision (large unified memory) driving an ISA configuration choice.</p>
+        <p><strong>Cache lines and false sharing:</strong> Cache lines on AArch64 are 64 bytes. If your bitmap's byte covers 8 frames, and those frames are allocated/freed by different CPU cores, all those operations hit the <em>same</em> cache line — this is called <strong>false sharing</strong>. It generates spurious coherency traffic even though the cores are touching logically independent data. Linux's per-CPU page allocator is explicitly designed to avoid this. Even in single-core QEMU, understanding this prepares you for Phase 7.</p>
+        <p><strong>Physical address space:</strong> Your QEMU virt machine has a 40-bit PA space (1TB). Real Apple Silicon (M1/M2) extends to 52-bit PA (FEAT_LPA2). The extra PA bits exist because unified memory architectures — where CPU and GPU share the same DRAM — need full address coverage across all agents. That's an example of a product architecture decision (unified memory) driving an ISA extension.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Why must a physical frame allocator exist before virtual memory can?</li>
+        <li>What does the <code>PhysAddr</code> newtype catch at compile time that a bare <code>u64</code> would let through to a crash?</li>
+        <li>Where does false sharing come from in a bitmap allocator, and what would a per-CPU design change?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/den0024/a/The-Memory-Management-Unit" target="_blank"><span class="ri">📐</span><span><span class="rn">ARM MMU Programmer's Guide</span><span class="rd">Granule sizes, translation stages</span></span></a>
+      <a class="rlink" href="https://www.kernel.org/doc/html/latest/mm/page_alloc.html" target="_blank"><span class="ri">🐧</span><span><span class="rn">Linux Page Allocator Docs</span><span class="rd">Buddy system internals — the real reference</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 3 -->
+  <section class="phase" id="ph3">
+    <div class="ph-header">
+      <div class="ph-num">03</div>
+      <div class="ph-title">
+        <h2>Virtual Memory &amp; MMU</h2>
+        <div class="ph-meta">
+          <span class="ph-tag core">Core Path</span>
+          <span class="ph-tag">Weeks 7–10</span>
+          <span class="ph-tag">~40 hrs</span>
+          <span class="ph-tag">page tables · TLB · TTBR0/1 · TCR_EL1 · MAIR</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Enable the MMU and understand every step of address translation. This is the most hardware-dense phase — you're configuring the CPU's translation table walk engine directly. The reward is a deep, permanent understanding of why virtual memory requires hardware support.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-3">
+      <li class="ms"><input type="checkbox" data-k="3-0"><label>Understand AArch64's 4-level translation: L0→L1→L2→L3, each level a 4KB table of 512 8-byte descriptors</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-1"><label>Define Rust structs for page table entries: table descriptors, block descriptors, page descriptors — with bitfield accessors</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-2"><label>Implement <code>map_page(virt: VirtAddr, phys: PhysAddr, flags: PageFlags)</code> — walk or allocate intermediate tables</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-3"><label>Configure <code>TCR_EL1</code>: granule = 4KB, T0SZ = 16 (48-bit VA), inner/outer shareability, ASID size</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-4"><label>Configure <code>MAIR_EL1</code>: define attribute index 0 = Normal WB, index 1 = Device-nGnRnE</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-5"><label>Identity-map the kernel via <code>TTBR0_EL1</code>: <code>VirtAddr == PhysAddr</code> for all kernel pages — the simplest mapping that gets the MMU on. Note: low addresses are TTBR0 territory, so the identity-mapped kernel lives there <em>for now</em></label></li>
+      <li class="ms"><input type="checkbox" data-k="3-6"><label>Disable the unused high half for now: set <code>TCR_EL1.EPD1</code> so TTBR1 walks are off until the higher-half move below</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-7"><label>Enable MMU: <code>dsb sy → isb → set SCTLR_EL1.M → dsb sy → isb</code> — get the barrier order exactly right</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-8"><label>Verify: UART output still works after MMU enable (confirms UART is mapped with device memory attributes)</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-9"><label>Handle a translation fault: decode <code>ESR_EL1</code> EC field (0b100100), print <code>FAR_EL1</code> (faulting virtual address)</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-10"><label>Move to a higher-half kernel: link at <code>0xFFFF_0000_0000_0000+</code>, build <code>TTBR1_EL1</code> tables, and trampoline across the switch — this frees TTBR0 entirely for user processes and is required before Phase 6's EL0 work</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">unsafe — heavily</span><span class="ctag">bitfield manipulation</span><span class="ctag">PhantomData&lt;T&gt;</span><span class="ctag">*mut PageTable</span><span class="ctag">asm! memory barriers</span><span class="ctag">#[repr(align(4096))]</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 18</strong> (Paging) + <strong>Ch. 19</strong> (TLBs) + <strong>Ch. 20</strong> (Smaller Tables) + <strong>Ch. 21–22</strong> (Beyond Physical Memory) — this block maps almost 1:1 to Phase 3. Read each chapter, then implement the corresponding piece before moving to the next.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Translation Table Walk Engine, TLBs, ASID, and the TTBR0/1 Split</span></div>
+      <div class="hw-body">
+        <p><strong>Why does hardware walk the page table?</strong> On most modern ISAs, the CPU has a dedicated hardware state machine called the Translation Table Walk Engine (TTWE). On a TLB miss, the TTWE traverses the multi-level page table in memory — no OS involvement required. This is a deliberate choice: software-managed TLBs (like MIPS) let the OS control every miss but add kernel path length and latency. ARM chose hardware walks for predictable performance. The TTWE is a real silicon block that costs area and power — its existence is a hardware investment justified by OS workloads.</p>
+        <div class="reg"><span class="cm">AArch64 4-level address translation (4KB granule, 48-bit VA):</span>
+
+VA bits:  [47:39]    [38:30]    [29:21]    [20:12]    [11:0]
+           L0 idx     L1 idx     L2 idx     L3 idx     page offset
+          (9 bits)   (9 bits)   (9 bits)   (9 bits)   (12 bits)
+
+<span class="hl">TTBR1_EL1</span>  (VA[63:48] = 0xFFFF)  →  kernel mappings
+<span class="hl2">TTBR0_EL1</span>  (VA[63:48] = 0x0000)  →  user process mappings</div>
+        <p><strong>The TTBR0/TTBR1 split is an AArch64 innovation.</strong> x86 has one CR3 register — switching between user and kernel requires either a full TLB flush or PCID (Process Context Identifier) tricks bolted on later. AArch64 hardwires the split: addresses starting 0xFFFF… use TTBR1 (kernel), addresses starting 0x0000… use TTBR0 (user). On a context switch, only TTBR0 changes — kernel mappings in TTBR1 are always valid. This directly reduces TLB flush costs and is a case of the ISA being designed with OS context switching semantics in mind.</p>
+        <p><strong>TLBs and ASID:</strong> The TLB caches virtual→physical translations. Each core has its own L1 TLB (typically 48–64 entries for instructions, 32–48 for data). Without tags, every context switch requires a full TLB flush — expensive. AArch64 tags TLB entries with an ASID (Address Space ID), so entries from different processes coexist. On context switch, only TTBR0 and the ASID change; stale entries from other processes are ignored. The ASID width (8 or 16 bits, set in <code>TCR_EL1</code>) bounds how many process TLB entries can coexist before an ASID rollover forces a flush.</p>
+        <p><strong>Memory attributes and MAIR:</strong> Every page table entry contains a 3-bit index into <code>MAIR_EL1</code> (Memory Attribute Indirection Register), which holds up to 8 attribute profiles. This indirection lets you change attributes for all pages of a type by modifying one register. The attributes control cacheability, shareability (inner-shareable for SMP, outer for full system), and device memory strictness (nGnRnE = no gathering, no reordering, no early-write-acknowledgement — the strictest device type, used for UART). The CPU uses these to decide whether to speculatively prefetch, write-combine, or reorder accesses to that region.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Walk <code>0xFFFF_0000_4321_0FFF</code> through all four levels by hand: which 9 bits index which table?</li>
+        <li>In the MMU-enable sequence, what specifically goes wrong if you drop the <code>dsb</code>? The <code>isb</code>?</li>
+        <li>What does an ASID buy you on context switch, and what forces a full TLB flush anyway?</li>
+        <li>Why must the UART page be Device-nGnRnE rather than Normal cacheable — what would the CPU otherwise do?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/101811/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">ARM: Learn the Architecture — MMU</span><span class="rd">Table walk, TLB, shareability — best intro</span></span></a>
+      <a class="rlink" href="https://os.phil-opp.com/" target="_blank"><span class="ri">🦀</span><span><span class="rn">Writing an OS in Rust (phil-opp)</span><span class="rd">x86, but paging concepts transfer directly</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 4 -->
+  <section class="phase" id="ph4">
+    <div class="ph-header">
+      <div class="ph-num">04</div>
+      <div class="ph-title">
+        <h2>Kernel Heap &amp; Allocator</h2>
+        <div class="ph-meta">
+          <span class="ph-tag core">Core Path</span>
+          <span class="ph-tag">Week 11</span>
+          <span class="ph-tag">~10 hrs</span>
+          <span class="ph-tag">GlobalAlloc · free lists · Layout · fragmentation</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Bridge the gap between raw 4KB frames and real Rust. A frame allocator can't give you <code>Box</code>, <code>Vec</code>, or <code>String</code> — those need a byte-granular heap behind <code>#[global_allocator]</code>. Phase 6's task stacks and Phase 8's filesystem structures depend on this existing.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-4">
+      <li class="ms"><input type="checkbox" data-k="4h-0"><label>Reserve a kernel heap VA range (e.g. 1 MB to start); map it with Normal write-back memory attributes via your Phase 3 <code>map_page</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-1"><label>Implement a bump allocator implementing the <code>GlobalAlloc</code> trait; register it with <code>#[global_allocator]</code> and <code>extern crate alloc</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-2"><label>Confirm <code>Box</code>, <code>Vec</code>, and <code>String</code> work in kernel code — print a heap-allocated string over UART</label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-3"><label>Upgrade to a linked-list free-list allocator: <code>dealloc</code> actually frees, adjacent free blocks coalesce</label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-4"><label>Handle <code>Layout</code> alignment correctly — including align &gt; 8 and align = 4096; an alignment bug here corrupts memory silently weeks later</label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-5"><label>Write a stress test: pseudo-random alloc/free sequence, poison freed memory, assert no block overlap — wire it into <code>make test</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="4h-6"><label>(Stretch) Fixed-size slab caches for hot kernel objects — the design Phase 6's <code>Task</code> structs will thank you for</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">GlobalAlloc trait</span><span class="ctag">#[global_allocator]</span><span class="ctag">extern crate alloc</span><span class="ctag">Layout (size + align)</span><span class="ctag">NonNull&lt;u8&gt;</span><span class="ctag">linked lists in unsafe Rust</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 17</strong> (Free-Space Management) — maps 1:1 to this phase: splitting, coalescing, headers, and the best-fit / first-fit / segregated-list design space. Read it before writing the free-list allocator, not after.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Why Allocator Design Is a Hardware Problem</span></div>
+      <div class="hw-body">
+        <p><strong>Allocation policy decides cache behavior.</strong> Two objects allocated together are usually accessed together. A free-list allocator that scatters successive allocations across the heap turns sequential access patterns into cache-miss storms; a bump or slab allocator keeps them on the same cache lines. This is why high-performance allocators (jemalloc, mimalloc) obsess over locality, not just speed of the alloc call itself.</p>
+        <p><strong>Alignment is a hardware contract, not a style preference.</strong> AArch64 atomic and exclusive instructions (<code>LDXR</code>/<code>STXR</code>, Phase 7) fault or lose their guarantees on unaligned addresses, and unaligned accesses that cross a cache-line boundary cost two memory transactions. <code>Layout</code> is Rust encoding this hardware contract in the type system — your allocator is where the contract gets honored or violated.</p>
+        <div class="reg"><span class="cm">Why a slab allocator exists (Bonwick, Sun 1994):</span>
+Free list:  alloc(64) → search list → split block → write header
+            objects scattered, headers pollute cache lines
+<span class="hl">Slab:</span>       one page = array of same-size slots + bitmap
+            alloc is "find free bit" — O(1), dense, cache-hot
+            object constructors run once per slot, not per alloc</div>
+        <p><strong>False sharing returns.</strong> Phase 2 introduced false sharing in the frame bitmap; the heap has the same disease. If your allocator hands two cores objects that share a 64-byte cache line, every write by one core invalidates the other's cached copy (the MESI traffic you'll study in Phase 7). This is why per-CPU allocator caches exist in Linux and every serious malloc — and why your slab stretch goal should align slots to cache lines.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Why can <code>Box</code> not exist on top of a frame allocator alone?</li>
+        <li>What does <code>Layout</code>'s align field promise, and which hardware instructions break if you ignore it?</li>
+        <li>Where does external fragmentation come from in a free list, and how does coalescing fight it?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://os.phil-opp.com/heap-allocation/" target="_blank"><span class="ri">🦀</span><span><span class="rn">phil-opp: Heap Allocation</span><span class="rd">GlobalAlloc in a kernel — x86 but directly applicable</span></span></a>
+      <a class="rlink" href="https://os.phil-opp.com/allocator-designs/" target="_blank"><span class="ri">🦀</span><span><span class="rn">phil-opp: Allocator Designs</span><span class="rd">Bump → linked list → fixed-size, in Rust</span></span></a>
+      <a class="rlink" href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-freespace.pdf" target="_blank"><span class="ri">📖</span><span><span class="rn">OSTEP Ch. 17 (PDF)</span><span class="rd">Free-space management — the theory</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 5 -->
+  <section class="phase" id="ph5">
+    <div class="ph-header">
+      <div class="ph-num">05</div>
+      <div class="ph-title">
+        <h2>Interrupts &amp; Hardware Timer</h2>
+        <div class="ph-meta">
+          <span class="ph-tag">Weeks 12–13</span>
+          <span class="ph-tag">~20 hrs</span>
+          <span class="ph-tag">GICv2 · ARM Generic Timer · DAIF · PPI</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Handle asynchronous hardware events. The timer interrupt is the heartbeat of a preemptive OS — without it, any task can monopolize the CPU forever. This phase closes the loop from a hardware oscillator to your OS scheduler.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-5">
+      <li class="ms"><input type="checkbox" data-k="5-0"><label>Initialize GICv2: program distributor (<code>GICD</code>, base <code>0x0800_0000</code>) and CPU interface (<code>GICC</code>, base <code>0x0801_0000</code>) — confirm both against your Phase 0 DTB dump</label></li>
+      <li class="ms"><input type="checkbox" data-k="5-1"><label>Enable the EL1 physical timer interrupt: INTID 30, a PPI (per-processor interrupt)</label></li>
+      <li class="ms"><input type="checkbox" data-k="5-2"><label>Program timer: set <code>CNTP_TVAL_EL0</code> to a tick count, enable via <code>CNTP_CTL_EL0.ENABLE</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="5-3"><label>Unmask IRQs: clear <code>DAIF.I</code> bit — confirm interrupts fire</label></li>
+      <li class="ms"><input type="checkbox" data-k="5-4"><label>IRQ handler: read <code>GICC_IAR</code> (interrupt acknowledge), dispatch by INTID, write <code>GICC_EOIR</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="5-5"><label>Implement a tick counter — verify it increments once per millisecond in QEMU</label></li>
+      <li class="ms"><input type="checkbox" data-k="5-6"><label>Understand IRQ vs. FIQ: read ARM's rationale for the fast-interrupt path and its low-latency guarantees</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">core::sync::atomic</span><span class="ctag">asm! for MSR/MRS</span><span class="ctag">volatile MMIO reads</span><span class="ctag">interrupt-safe critical sections</span><span class="ctag">static mut (with care)</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 6</strong> (Limited Direct Execution, revisit) — specifically the hardware-timer section. This chapter explains exactly why hardware timers are necessary for preemption, which is the mechanism you're implementing here.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Interrupt Controllers, Timer Architecture, and IRQ Masking</span></div>
+      <div class="hw-body">
+        <p><strong>Why a dedicated interrupt controller?</strong> A single interrupt pin worked for 8-bit microcontrollers with a handful of peripherals. Modern SoCs have hundreds of interrupt sources — UART, PCIe, USB, GPU, storage, thermal sensors — that need priority levels, routing to specific cores, per-source masking, pending state tracking, and EOI acknowledgement signaling. The GIC (Generic Interrupt Controller) is a dedicated peripheral that manages all of this and presents a clean, consistent interface to CPU cores. Apple Silicon uses an Apple-proprietary AIC instead of the ARM standard GIC — a product choice justified by performance and integration, not ISA requirements.</p>
+        <div class="reg"><span class="cm">GICv2 interrupt categories:</span>
+SGI  (Software Generated Interrupts)  <span class="hl">INTID  0–15</span>   For IPI (inter-processor, Phase 7 SMP)
+PPI  (Per-Processor Interrupts)       <span class="hl">INTID 16–31</span>   Timer lives here (INTID 30)
+SPI  (Shared Peripheral Interrupts)   <span class="hl">INTID 32+</span>    UART, PCIe, storage, etc.</div>
+        <p><strong>The ARM Generic Timer is in the CPU core — not a peripheral.</strong> Unlike x86's PIT or HPET (bus-attached peripherals), the ARM Generic Timer is instantiated inside each CPU core. This design eliminates bus latency for timer reads and enables precise per-core scheduling without shared-peripheral contention. It counts at a fixed system frequency (<code>CNTFRQ_EL0</code>) and provides separate EL1 physical, EL1 virtual, EL2, and EL3 timers. That four-way split exists precisely because each privilege level needs an independent, tamper-proof timer that software running at a lower EL cannot reprogram.</p>
+        <p><strong>DAIF flags:</strong> <code>PSTATE.DAIF</code> masks four exception types: Debug, SError (system errors like uncorrectable ECC), IRQ, and FIQ. Clearing DAIF.I unmasks hardware interrupts. The OS must mask IRQs when modifying shared kernel data structures — this is the hardware foundation of uniprocessor synchronization. On a single-core kernel, <code>disable_irq()</code> + <code>enable_irq()</code> is often sufficient. SMP (Phase 7 stretch) requires real locks on top of interrupt masking, because other cores ignore your DAIF flag entirely.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Trace a timer interrupt end to end: <code>CNTP_CTL_EL0</code> fires → … → your handler's first instruction. Name every hardware step.</li>
+        <li>Why does the GIC exist at all — what breaks if you wire 200 devices straight to the core?</li>
+        <li>What is the difference between masking <code>DAIF.I</code> and disabling an interrupt at the GIC distributor?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/ihi0048/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">GIC Architecture Specification</span><span class="rd">GICv2 register map and programming model</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/102379/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">ARM Generic Timer Guide</span><span class="rd">CNTFRQ, CNTP, PPI routing, EL-specific timers</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 6 -->
+  <section class="phase" id="ph6">
+    <div class="ph-header">
+      <div class="ph-num">06</div>
+      <div class="ph-title">
+        <h2>Processes &amp; Scheduling</h2>
+        <div class="ph-meta">
+          <span class="ph-tag">Weeks 14–16</span>
+          <span class="ph-tag">~30 hrs</span>
+          <span class="ph-tag">context switch · round-robin · EL0 · SVC</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Give the CPU the illusion of multiple concurrent execution contexts. Implement context switching in assembly, wire it to the timer interrupt, and understand the true hardware cost of every switch — because that cost is why OS scheduling decisions exist.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-6">
+      <li class="ms"><input type="checkbox" data-k="6-0"><label>Define a <code>Task</code> struct: callee-saved registers (x19–x30), SP, ELR, SPSR, and a stack allocation</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-1"><label>Write <code>context_switch(from: *mut Task, to: *const Task)</code> in assembly: save x19–x30 + SP, restore from next task</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-2"><label>Implement round-robin scheduler: circular task queue, called from timer IRQ handler</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-3"><label>Create 3 kernel threads (EL1) that each print their task ID in a loop — verify interleaving in UART output</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-7"><label>Build a minimal user address space: allocate a fresh TTBR0 page table, map one user code page (EL0 executable) and one stack page (EL0 RW), install <code>TTBR0_EL1</code> + ASID — without this, the first EL0 instruction fetch faults</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-4"><label>EL1 → EL0 transition: set <code>SPSR_EL1</code> to EL0 mode, set <code>ELR_EL1</code> to user entry point, execute <code>eret</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="6-5"><label>Handle <code>svc #0</code> from EL0: save full context (x0–x30, ELR, SPSR), dispatch syscall number, restore and <code>eret</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="6-6"><label>Implement <code>sys_write</code> and <code>sys_exit</code> — a user-space task that prints text and exits cleanly</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">inline asm constraints</span><span class="ctag">#[naked] context switch</span><span class="ctag">Box for stacks</span><span class="ctag">*const / *mut Task</span><span class="ctag">global_asm! trampolines</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 4–5</strong> (Process Abstraction + API) + <strong>Ch. 7</strong> (Scheduling: Introduction) + <strong>Ch. 8</strong> (MLFQ) — implement round-robin first, then read MLFQ to understand why it's strictly better and what data structures you'd need. You won't implement MLFQ here, but understanding it motivates Phase 7's synchronization work.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ The True Cost of a Context Switch — Beyond Register Saves</span></div>
+      <div class="hw-body">
+        <p><strong>The register save is the cheap part.</strong> Saving x0–x30 + FPSIMD costs ~50 ns. The expensive part is what happens to the hardware state you can't save and restore.</p>
+        <div class="reg"><span class="cm">What actually changes on a context switch (AArch64):</span>
+<span class="hl">Software-saved (explicit):</span>
+  x0–x30  (248 B), SP, ELR, SPSR, FPSIMD (~768 B total)
+
+<span class="hl2">Hardware state — not saved, implicit cost:</span>
+  L1/L2 caches     — process code/data goes cold (capacity eviction)
+  Branch predictor — BTB, BHB, RSB contain trained predictions for old task
+  TLB              — ASID mitigates, but capacity pressure remains
+  Store/load bufs  — pipeline fully drains on ERET
+  ROB / rename     — out-of-order execution state is discarded</div>
+        <p><strong>The branch predictor is a security concern.</strong> The Branch Target Buffer (BTB) and Branch History Buffer (BHB) contain predictions trained by the previous process. Spectre v2 exploits this: a malicious process poisons the BTB so the kernel mispredicts into attacker-controlled code during a speculative window. This is why Linux added IBRS/eIBRS mitigations on x86, and why ARM added branch-history clearing (the <code>CLRBHB</code> instruction plus firmware workarounds) along with the <code>CSV2</code>/<code>CSV3</code> ID-register fields — not instructions, but architectural guarantees an OS can query to learn whether a core needs mitigation at all. Context switching is no longer just about registers — it has security semantics baked into the ISA.</p>
+        <p><strong>Apple Silicon omits SMT (hyperthreading) — partially for security.</strong> With Intel's SMT, two hardware threads share one physical core's execution units, caches, and TLB. When the OS schedules two processes on the same physical core, they can observe each other's cache timing — the root of Flush+Reload and other cache side-channel attacks. Apple explicitly does not implement SMT. This reduces single-threaded throughput per watt at the margin, but eliminates an entire class of hardware side-channel attacks.</p>
+        <p><strong>Why SPARC invented register windows — and why it lost.</strong> SPARC had hardware register windows: procedure calls slid the window rather than explicitly saving registers, making call/return almost free. Context switching was hardware-accelerated. But when OS workloads grew in complexity, a full window save (the context switch case) was actually slower than software-managed Reduced ISA register saves on a pipelined core. The lesson: optimizing hardware for one workload pattern (procedure calls) can create pathological behavior in another (preemptive multitasking).</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Why does <code>context_switch</code> save only x19–x30 while syscall entry saves x0–x30?</li>
+        <li>Name three pieces of hardware state a context switch cannot save, and what each costs the incoming task.</li>
+        <li>Why must the preemption timer be unprogrammable from EL0 — what dies if it isn't?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/den0024/a/AArch64-Exception-Handling" target="_blank"><span class="ri">📐</span><span><span class="rn">AArch64 Exception Handling Guide</span><span class="rd">SVC, EL transitions, SPSR/ELR usage</span></span></a>
+      <a class="rlink" href="https://github.com/mit-pdos/xv6-riscv" target="_blank"><span class="ri">📖</span><span><span class="rn">xv6-riscv source</span><span class="rd">Reference OS — context switch + scheduler patterns</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 7 -->
+  <section class="phase" id="ph7">
+    <div class="ph-header">
+      <div class="ph-num">07</div>
+      <div class="ph-title">
+        <h2>Concurrency Primitives</h2>
+        <div class="ph-meta">
+          <span class="ph-tag">Weeks 17–19</span>
+          <span class="ph-tag">~30 hrs</span>
+          <span class="ph-tag">LDXR/STXR · DMB/DSB/ISB · WFE/SEV · MESI</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Build correct, efficient synchronization primitives from hardware instructions up. Understand why AArch64's memory model is weaker than x86's, what that costs you, and how every memory barrier instruction corresponds to a concrete hardware buffer flush or ordering constraint. Note: on one core these primitives never truly contend — the stretch milestones boot real secondary cores so you can watch them earn their keep.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-7">
+      <li class="ms"><input type="checkbox" data-k="7-0"><label>Implement a spinlock using <code>LDXR</code>/<code>STXR</code> exclusive monitor instructions in inline asm</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-1"><label>Place <code>DMB ISH</code> correctly on lock acquire and release — understand the ordering guarantee each provides</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-2"><label>Upgrade to a WFE-based spinlock: <code>WFE</code> on contention, <code>STLR</code> + <code>SEV</code> on release (power-efficient)</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-3"><label>Implement <code>Mutex&lt;T&gt;</code> using your spinlock + scheduler sleep/wake (contended case blocks, not spins)</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-4"><label>Implement a condition variable: <code>wait()</code>, <code>signal()</code>, <code>broadcast()</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="7-5"><label>Demonstrate producer-consumer: two kernel threads exchange data through a bounded queue protected by Mutex + CondVar</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-6"><label>Read <code>core::sync::atomic::Ordering</code> variants; map each to the corresponding AArch64 barrier instruction</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-7"><label>(Stretch — make it real) Boot secondary cores: PSCI <code>CPU_ON</code> per core, per-core boot stacks, per-core GIC CPU-interface init — run QEMU with <code>-smp 4</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="7-8"><label>(Stretch) Run producer-consumer across two real cores, then deliberately delete one <code>DMB</code> and watch the data corrupt — the single most instructive bug you can give yourself</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">core::sync::atomic</span><span class="ctag">Ordering::{Acquire,Release,SeqCst}</span><span class="ctag">UnsafeCell&lt;T&gt;</span><span class="ctag">Send + Sync markers</span><span class="ctag">LDXR/STXR asm! patterns</span><span class="ctag">PhantomData lifetime</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 28</strong> (Locks) + <strong>Ch. 29</strong> (Lock-Based Data Structures) + <strong>Ch. 30</strong> (Condition Variables) + <strong>Ch. 31</strong> (Semaphores) + <strong>Ch. 32</strong> (Common Concurrency Problems) — this OSTEP block maps almost 1:1 to this phase's milestones. Read each chapter immediately before implementing that primitive.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ Weak Memory Models, MESI Cache Coherency, and Why ARM Is Not x86</span></div>
+      <div class="hw-body">
+        <p><strong>x86 has Total Store Order (TSO). ARM does not.</strong> On x86, stores appear in program order to all processors — the ISA guarantees this. On AArch64, the memory model is weak: stores and loads can be reordered by the CPU as long as the reordering is invisible to the local core. This means ARM software must explicitly insert barriers to enforce ordering for memory operations visible to other cores. This isn't a bug — it's a deliberate ISA choice that allows aggressive out-of-order execution and store coalescing on multicore designs.</p>
+        <div class="reg"><span class="cm">AArch64 memory barrier instructions:</span>
+<span class="hl">DMB ISH</span>   Data Memory Barrier, Inner Shareable
+           Orders memory accesses before/after the barrier
+           Used in acquire/release of spinlocks
+
+<span class="hl">DSB ISH</span>   Data Synchronization Barrier
+           Stronger: stalls execution until barrier completes
+           Required before/after MMU enable, cache maintenance
+
+<span class="hl">ISB</span>       Instruction Synchronization Barrier
+           Flushes pipeline + prefetch; reloads instructions from memory
+           Required after writing SCTLR_EL1, TTBR changes
+
+<span class="cm">Rust Ordering → AArch64 instruction mapping:</span>
+<span class="hl2">Acquire</span> load    →  LDAR   (Load-Acquire)    barrier after load
+<span class="hl2">Release</span> store   →  STLR   (Store-Release)   barrier before store
+<span class="hl2">SeqCst</span>          →  LDAR + STLR + DMB ISH</div>
+        <p><strong>The MESI cache coherency protocol:</strong> Each cache line is in one of four states: <strong>M</strong>odified (dirty, owned exclusively), <strong>E</strong>xclusive (clean, owned exclusively), <strong>S</strong>hared (clean, other caches may have a copy), or <strong>I</strong>nvalid. When two cores simultaneously try to acquire the same spinlock, the lock's cache line bounces: Core A holds it in M state, Core B requests it, A writes back (→ I), B acquires E state. This is called <em>cache line bouncing</em>, and it's why contended spinlocks are expensive — not the atomic instruction itself, but the coherency bus traffic it generates.</p>
+        <p><strong>WFE/SEV as hardware hints:</strong> Spinning on a lock in a plain loop wastes power and generates continuous coherency traffic (repeated LDXR requests to the cache controller). AArch64 provides <code>WFE</code> (Wait For Event): the core enters a low-power state and wakes when another core issues <code>SEV</code> (Send Event) or an interrupt fires. A WFE-based spinlock consumes far less power and generates minimal bus traffic. The <code>SEVL</code> (Send Event Local) instruction primes the local event register before the WFE loop to close a race where the lock is released between the check and the WFE.</p>
+        <p><strong>LL/SC vs. CAS — and why RISC ISAs prefer LL/SC:</strong> AArch64 uses Load-Exclusive/Store-Exclusive (<code>LDXR</code>/<code>STXR</code>) instead of Compare-And-Swap (<code>CAS</code>) as x86 uses. LL/SC avoids the ABA problem: between LDXR and STXR, if any core writes to the address — even if the value returns to the original — STXR fails. CAS would silently succeed, causing subtle bugs. ARMv8.1-A added <code>CAS</code> instructions (FEAT_LSE) for throughput on highly contended locks in datacenter workloads, but LL/SC remains the correct primitive for building new synchronization mechanisms.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>What hardware tracks the LDXR→STXR window, and what makes the STXR fail?</li>
+        <li>Map <code>Acquire</code> and <code>Release</code> to LDAR/STLR: which reorderings does each forbid, in which direction?</li>
+        <li>Why is a contended spinlock slow even though the atomic instruction itself is fast?</li>
+        <li>What does <code>WFE</code> actually do to the core, and what race does <code>SEVL</code> close?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://developer.arm.com/documentation/102336/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">ARM Memory Model Guide</span><span class="rd">Barriers, ordering, LDXR/STXR, WFE/SEV</span></span></a>
+      <a class="rlink" href="https://marabos.nl/atomics/" target="_blank"><span class="ri">🦀</span><span><span class="rn">Rust Atomics and Locks (free)</span><span class="rd">Maps Rust Ordering to hardware precisely</span></span></a>
+      <a class="rlink" href="https://research.swtch.com/mm" target="_blank"><span class="ri">📄</span><span><span class="rn">Hardware Memory Models — Russ Cox</span><span class="rd">TSO, weak ordering, x86 vs. ARM compared</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 8 -->
+  <section class="phase" id="ph8">
+    <div class="ph-header">
+      <div class="ph-num">08</div>
+      <div class="ph-title">
+        <h2>Storage &amp; Filesystem</h2>
+        <div class="ph-meta">
+          <span class="ph-tag">Weeks 20–22</span>
+          <span class="ph-tag">~30 hrs</span>
+          <span class="ph-tag">virtio-blk · virtqueues · DMA · inodes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>Make data outlive the power button. Write a real block device driver — descriptor rings, DMA buffers, device negotiation — then build an xv6-style filesystem on top of it. Persistence is roughly a third of OSTEP, and it's where the OS stops being a CPU toy and starts being a system.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-8">
+      <li class="ms"><input type="checkbox" data-k="8-0"><label>Create a disk image (<code>dd if=/dev/zero of=disk.img bs=1M count=64</code>); attach via <code>-device virtio-blk-device</code> — find the virtio-mmio transport region in your DTB</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-1"><label>Probe virtio-mmio: read magic <code>0x74726976</code> ("virt"), device ID 2 (block), negotiate feature bits, set DRIVER_OK status</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-2"><label>Build the virtqueue by hand: descriptor table, available ring, used ring — three <code>#[repr(C)]</code> structs in physically contiguous memory you allocated in Phase 2</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-3"><label>Read and write 512-byte sectors: chain header/data/status descriptors, kick the device, poll (or take the interrupt via your Phase 5 GIC) — verify against <code>hexdump disk.img</code> on the host</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-4"><label>Design the on-disk layout (xv6-style): superblock, inode table, free-block bitmap, data blocks — document it in this file</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-5"><label>Implement the read path: superblock parse, directory lookup, inode → block traversal — <code>open</code>/<code>read</code>/<code>close</code> for files</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-6"><label>Implement the write path: block allocation, inode update, directory entry creation — write a file from the kernel, read it back after a QEMU restart</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-7"><label>Expose it to EL0: <code>sys_open</code>, <code>sys_read</code>, <code>sys_write</code>, <code>sys_close</code> with per-task file descriptor tables</label></li>
+      <li class="ms"><input type="checkbox" data-k="8-8"><label>(Stretch) Buffer cache: cache recently used blocks in the Phase 4 heap with LRU eviction — measure the hit rate</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">#[repr(C)] on-disk structs</span><span class="ctag">DMA-safe buffers</span><span class="ctag">volatile ring accesses</span><span class="ctag">endianness (LE)</span><span class="ctag">MaybeUninit buffers</span><span class="ctag">fence vs. barrier</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 36</strong> (I/O Devices) + <strong>Ch. 37</strong> (Hard Disk Drives) + <strong>Ch. 39–40</strong> (Files &amp; Directories, FS Implementation) — Ch. 40's "vsfs" is almost exactly the filesystem you're building. Read 36 before the driver, 39–40 before the FS layout.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ DMA, Virtio, and Why Devices Bypass the CPU</span></div>
+      <div class="hw-body">
+        <p><strong>Why DMA exists:</strong> Copying a 4KB sector through the CPU one register at a time (programmed I/O) burns thousands of cycles the CPU could spend elsewhere. DMA inverts the relationship: the OS hands the device a physical address, the device's own engine moves the data, and an interrupt announces completion. The descriptor rings you build this phase are exactly that handoff — your virtqueue entries hold <em>physical</em> addresses because the device doesn't go through your MMU.</p>
+        <p><strong>That bypass is also the danger.</strong> A device doing DMA can write anywhere in physical memory — the MMU's protections don't apply to it. This is why real systems add an IOMMU (ARM's SMMU): a second MMU that translates and restricts <em>device</em> addresses, so a buggy or malicious peripheral can't scribble over the kernel. QEMU's virtio is trusted, so you skip this — but know which protection you're living without.</p>
+        <div class="reg"><span class="cm">Why virtio instead of emulating a real SATA controller:</span>
+Emulated real HW:  guest writes each register → VM exit → QEMU
+                   emulates → resume    (thousands of exits/op)
+<span class="hl">virtio:</span>            guest fills a ring in shared memory, writes
+                   ONE doorbell register → one exit → QEMU
+                   drains the whole ring
+Paravirtualization = designing the "hardware" interface
+around what's actually expensive: the guest/host transition.</div>
+        <p><strong>DMA vs. caches — the trap QEMU hides from you.</strong> On real hardware, the CPU cache and DRAM can disagree: if your dirty descriptor still sits in L1 when you ring the doorbell, the device reads stale DRAM. Real drivers do cache clean/invalidate maintenance (<code>DC CVAC</code>/<code>DC IVAC</code>) or map DMA buffers non-cacheable. QEMU's device model is cache-coherent so you won't hit this — but the <code>DMB</code> you must still place before the doorbell write (so the device observes a fully written ring) is the same ordering discipline from Phase 7, now between CPU and device instead of core and core.</p>
+        <p><strong>Why filesystems are block-structured:</strong> Storage hardware doesn't sell bytes — flash erases in large blocks, disks read whole sectors, and the ECC protecting your data is computed per sector. The 512-byte transfer granularity propagates upward into every FS design decision: block-aligned inodes, bitmap-per-block allocation, and the buffer cache. The FS layout you design is downstream of the physics of the medium.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Why does virtio beat emulating real hardware — what is a VM exit and why is it expensive?</li>
+        <li>Walk a <code>read()</code> from syscall to bytes: fd → inode → block number → virtqueue → DMA → buffer.</li>
+        <li>Why does DMA bypass the MMU, what risk does that create, and what is the IOMMU's answer?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html" target="_blank"><span class="ri">📚</span><span><span class="rn">Virtio Specification (OASIS)</span><span class="rd">virtio-mmio transport + virtio-blk, the primary source</span></span></a>
+      <a class="rlink" href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.c" target="_blank"><span class="ri">📖</span><span><span class="rn">xv6 fs.c + virtio_disk.c</span><span class="rd">A complete, readable FS + virtio driver to study</span></span></a>
+      <a class="rlink" href="https://pages.cs.wisc.edu/~remzi/OSTEP/file-implementation.pdf" target="_blank"><span class="ri">📖</span><span><span class="rn">OSTEP Ch. 40: vsfs (PDF)</span><span class="rd">The filesystem you're about to build</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ PHASE 9 -->
+  <section class="phase" id="ph9">
+    <div class="ph-header">
+      <div class="ph-num">09</div>
+      <div class="ph-title">
+        <h2>User Programs &amp; ELF Loading</h2>
+        <div class="ph-meta">
+          <span class="ph-tag">Weeks 23–24</span>
+          <span class="ph-tag">~25 hrs</span>
+          <span class="ph-tag">ELF64 · exec · W^X · PAN/PXN · COW</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Goal</div>The capstone: load a real program from your filesystem into a fresh address space and run it at EL0. This ties every prior phase together — frames (P2), page tables (P3), heap (P4), scheduling (P6), syscalls (P6), and the FS (P8) — into the thing an OS actually is: a program that runs other programs.</div>
+
+    <div class="sl">Milestones</div>
+    <ul class="milestones" id="ms-9">
+      <li class="ms"><input type="checkbox" data-k="9-0"><label>Build user programs as separate <code>no_std</code> crates with their own linker script (user VA base, e.g. <code>0x40_0000</code>); copy the binaries into <code>disk.img</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="9-1"><label>Parse ELF64 by hand: file header magic, program header table, <code>PT_LOAD</code> segments with their <code>p_vaddr</code>/<code>p_filesz</code>/<code>p_memsz</code>/<code>p_flags</code> — <code>#[repr(C)]</code> structs, no crate</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-2"><label>Implement <code>exec</code>: fresh TTBR0 tree, load each segment from the FS into newly allocated frames, map with permissions derived from <code>p_flags</code> — enforce W^X (writable pages never executable)</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-3"><label>Set up the user stack (guard page below it), point <code>ELR_EL1</code> at the ELF entry point, <code>eret</code> — your first program loaded from disk runs at EL0</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-4"><label>Add <code>sys_exec</code>, <code>sys_exit</code>, <code>sys_wait</code>; validate every user-supplied pointer/length in syscalls before touching it — the kernel must never trust EL0</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-5"><label>Write a tiny shell as a user program: read a name over <code>sys_read</code>(UART), <code>sys_exec</code> it, <code>sys_wait</code> for exit — an OS you can talk to</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-6"><label>Prove isolation: a user program dereferencing a kernel address dies with a clean fault message; the kernel and other tasks keep running</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-7"><label>(Stretch) <code>fork</code> with copy-on-write: share frames read-only, copy on the permission fault — the single most elegant trick in OS history</label></li>
+    </ul>
+
+    <div class="sl">Key Rust Concepts</div>
+    <div class="concepts">
+      <span class="ctag">#[repr(C)] ELF structs</span><span class="ctag">unsafe pointer parsing</span><span class="ctag">user-pointer validation</span><span class="ctag">per-process ownership</span><span class="ctag">Drop for address spaces</span>
+    </div>
+
+    <div class="sl">OSTEP</div>
+    <div class="ostep-row">
+      <div class="ostep-badge">OSTEP</div>
+      <p><strong>Ch. 5</strong> (Process API: fork/exec/wait — now you implement what Ch. 5 only described) + <strong>Ch. 23</strong> (Complete Virtual Memory Systems) — the VAX/VMS and Linux case studies read completely differently once you've built P2–P4 yourself. A fitting last chapter.</p>
+    </div>
+
+    <div class="sl">Hardware Deep Dive</div>
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ W^X, PAN/PXN, and Permission Faults as a Feature</span></div>
+      <div class="hw-body">
+        <p><strong>W^X is enforced by page table bits you already know.</strong> Each AArch64 descriptor carries AP[2:1] (read/write per EL), UXN (Unprivileged eXecute Never), and PXN (Privileged eXecute Never). W^X — no page both writable and executable — kills the classic exploit of writing shellcode into a buffer and jumping to it. Your <code>exec</code> derives these bits from ELF <code>p_flags</code>; getting them wrong is the difference between a kernel and a vulnerability.</p>
+        <p><strong>PXN and PAN: the hardware distrusts the kernel, on purpose.</strong> PXN ensures the kernel can never <em>execute</em> user pages even if tricked into jumping there (kills ret2usr attacks). PAN (Privileged Access Never, ARMv8.1) goes further: the kernel can't even <em>read or write</em> user memory through stray pointers — it must explicitly toggle PAN around intentional user copies. Both exist because decades of CVEs proved "the kernel is privileged" should not mean "the kernel touches anything by default." Set PXN on every user mapping; try PAN as a bonus.</p>
+        <div class="reg"><span class="cm">Copy-on-write: a permission fault used as a feature:</span>
+fork():   copy page TABLES only, mark every page read-only
+          parent + child share all frames     (microseconds)
+child writes a page:
+          → permission fault → kernel sees the COW marker
+          → allocates a frame, copies 4KB, remaps writable
+          → returns; the store retries, succeeds
+Cost is deferred to pages actually written —
+exec() right after fork() copies almost nothing.</div>
+        <p><strong>Why the kernel must validate user pointers:</strong> a syscall arg like <code>sys_write(fd, ptr, len)</code> is attacker-controlled. If the kernel blindly dereferences <code>ptr</code>, EL0 can pass a kernel address and use the kernel's own privilege to read or corrupt itself — the confused-deputy problem. Your check ("is [ptr, ptr+len) entirely in this task's user range and mapped?") is the software half of the contract; PAN is the hardware backstop for the cases you miss.</p>
+      </div>
+    </div>
+
+    <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
+      <ul style="margin:8px 0 0 18px;padding:0">
+        <li>Which descriptor bits enforce W^X, and what attack does it kill?</li>
+        <li>Why must every user pointer be validated in a syscall — describe the confused-deputy failure if you don't.</li>
+        <li>How does copy-on-write turn a permission fault into a feature, and why does fork+exec make it pay off?</li>
+      </ul>
+    </div>
+
+    <div class="sl">Resources</div>
+    <div class="resources">
+      <a class="rlink" href="https://refspecs.linuxfoundation.org/elf/elf.pdf" target="_blank"><span class="ri">📚</span><span><span class="rn">ELF Specification</span><span class="rd">File header, program headers, PT_LOAD semantics</span></span></a>
+      <a class="rlink" href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/exec.c" target="_blank"><span class="ri">📖</span><span><span class="rn">xv6 exec.c</span><span class="rd">A complete exec implementation in ~100 lines</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/102376/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">Learn the Architecture: Mem. Attributes</span><span class="rd">AP bits, UXN/PXN, access permissions</span></span></a>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ FOOTER -->
+  <footer class="pg-footer" id="footer">
+    <div class="ft-title">Quick Reference: QEMU Launch Command</div>
+    <div class="cmd-block"><span class="cm"># Boot your kernel in QEMU AArch64 virt machine</span>
+<span class="cmd">qemu-system-aarch64</span> \
+  <span class="cm"># virtualization=on → start at EL2 (Phase 1 drops to EL1)</span>
+  <span class="fl">-machine</span> virt,virtualization=on \
+  <span class="fl">-cpu</span>     cortex-a72 \
+  <span class="fl">-m</span>       256M \
+  <span class="fl">-nographic</span> \
+  <span class="fl">-serial</span>  mon:stdio \
+  <span class="fl">-kernel</span>  target/aarch64-unknown-none/debug/rustkernel
+
+<span class="cm"># Add for GDB remote debugging (pauses at first instruction):</span>
+  <span class="fl">-s</span>  <span class="cm">(= -gdb tcp::1234)</span>  <span class="fl">-S</span>  <span class="cm">(pause until GDB attaches)</span>
+
+<span class="cm"># SMP stretch (Phase 7) — boot secondary cores via PSCI:</span>
+  <span class="fl">-smp</span> 4
+
+<span class="cm"># Storage (Phase 8) — attach a virtio block device:</span>
+  <span class="fl">-drive</span> file=disk.img,if=none,format=raw,id=hd0 \
+  <span class="fl">-device</span> virtio-blk-device,drive=hd0</div>
+
+    <div class="ft-title">Essential GDB Commands</div>
+    <div class="cmd-block"><span class="cmd">gdb-multiarch</span> target/aarch64-unknown-none/debug/rustkernel
+(gdb) <span class="cmd">target remote</span> :1234              <span class="cm"># connect to QEMU</span>
+(gdb) <span class="cmd">set architecture</span> aarch64        <span class="cm"># ensure AArch64 disassembly</span>
+(gdb) <span class="cmd">info registers</span>                   <span class="cm"># dump all GPRs (x0–x30, SP, PC)</span>
+(gdb) <span class="cmd">x/20gx</span> $sp                       <span class="cm"># examine 20 words on the stack</span>
+(gdb) <span class="cmd">p/x</span> *(uint64_t*)0x09000000       <span class="cm"># read UART DR register</span>
+(gdb) <span class="cmd">monitor info mem</span>                  <span class="cm"># QEMU physical memory map</span>
+(gdb) <span class="cmd">stepi</span>                             <span class="cm"># step one machine instruction</span></div>
+
+    <div class="ft-title">Key ARM Reference Docs (all free from developer.arm.com)</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:24px">
+      <a class="rlink" href="https://developer.arm.com/documentation/ddi0487/latest/" target="_blank"><span class="ri">📚</span><span><span class="rn">ARMv8-A Architecture Reference Manual</span><span class="rd">The definitive ISA specification</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/den0024/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">Cortex-A Programmer's Guide (A64)</span><span class="rd">Practical guide to exception levels, boot</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/101811/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">Learn the Architecture: MMU</span><span class="rd">Best intro to translation table walks</span></span></a>
+      <a class="rlink" href="https://developer.arm.com/documentation/102336/latest/" target="_blank"><span class="ri">📐</span><span><span class="rn">Learn the Architecture: Memory Model</span><span class="rd">Barriers, ordering, weak memory explained</span></span></a>
+    </div>
+
+    <div class="ft-note">Plan of Record v1.1 · rustkernel/aarch64 · iterate on this document as you learn · checkboxes persist in your browser</div>
+  </footer>
+
+</main>
+
+<script>
+  // ── Checkbox persistence ──
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    const key = 'rk:' + cb.dataset.k;
+    try { if (localStorage.getItem(key) === '1') { cb.checked = true; cb.closest('.ms').classList.add('done'); } } catch(e) {}
+    cb.addEventListener('change', () => {
+      try { localStorage.setItem(key, cb.checked ? '1' : '0'); } catch(e) {}
+      cb.closest('.ms').classList.toggle('done', cb.checked);
+      updateProgress();
+    });
+  });
+
+  function updateProgress() {
+    for (let p = 0; p <= 9; p++) {
+      const all  = document.querySelectorAll('#ms-' + p + ' input[type="checkbox"]');
+      const done = [...all].filter(c => c.checked).length;
+      const el   = document.getElementById('pr-' + p);
+      if (el && all.length) el.textContent = done + '/' + all.length;
+      const nav  = document.getElementById('nav-' + p);
+      const pn   = nav ? nav.querySelector('.nav-pn') : null;
+      if (pn) pn.style.color = (all.length && done === all.length) ? 'var(--green)' : '';
+    }
+  }
+  updateProgress();
+
+  // ── Active nav on scroll ──
+  const phases   = document.querySelectorAll('.phase');
+  const navLinks = document.querySelectorAll('.sb-nav a');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  phases.forEach(p => io.observe(p));
+</script>
+
+</body>
+</html>
