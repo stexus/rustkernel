@@ -97,6 +97,7 @@ pub const DRAM_SIZE: u64 = 0x0800_0000; // 128 MiB
 const FRAME_COUNT: usize = (DRAM_SIZE / PAGE_SIZE) as usize;
 /// Number of `u64` words needed, one bit per frame. 32768 / 64 = 512.
 const BITMAP_WORDS: usize = FRAME_COUNT / 64;
+const BITMAP_BITS: usize = BITMAP_WORDS * 64;
 
 /// Bitmap allocator. `0 = free`, `1 = used` (so a zeroed `.bss` starts all-free).
 /// `next` is the search hint that keeps `alloc` amortized O(1).
@@ -149,8 +150,19 @@ impl FrameAllocator {
         // TODO: clamp the range to DRAM, convert to frame indices (round start
         // DOWN and end UP so partially-covered frames are fully reserved), and
         // set_used() across the range.
-        let _ = (start, end);
-        todo!()
+        // Clamp the requested range to DRAM; anything outside is ignored.
+        let dram_end = DRAM_BASE + DRAM_SIZE;
+        let start = start.as_u64().max(DRAM_BASE);
+        let end = end.as_u64().min(dram_end);
+        if start >= end {
+            return;
+        }
+        // Round start DOWN and end UP so partially-covered frames are reserved.
+        let start_idx = ((start - DRAM_BASE) / PAGE_SIZE) as usize;
+        let end_idx = ((end - DRAM_BASE + PAGE_SIZE - 1) / PAGE_SIZE) as usize;
+        for i in start_idx..end_idx {
+            self.set_used(i);
+        }
     }
 
     /// Allocate one free frame, or None if DRAM is full.
@@ -160,7 +172,23 @@ impl FrameAllocator {
         //   2. Skip words equal to u64::MAX (all 64 frames used).
         //   3. In the first non-full word, the free bit is (!word).trailing_zeros().
         //   4. set_used() it, update self.next, return frame_addr(index).
-        todo!()
+        //   check if next is used
+        //   if it is, take it and increment next; otherwise, continue incrementing next until we
+        //   find a one, wrapping around when needed
+        let mut free_idx = self.next;
+        let mut count = 0;
+        // Advance while frames are used; stop on the first free one.
+        while count < BITMAP_BITS && self.is_used(free_idx) {
+            free_idx = (free_idx + 1) % BITMAP_BITS;
+            count += 1;
+        }
+        if count == BITMAP_BITS {
+            None
+        } else {
+            self.set_used(free_idx);
+            self.next = (free_idx + 1) % BITMAP_BITS;
+            Some(Self::frame_addr(free_idx))
+        }
     }
 
     /// Return a previously-allocated frame to the pool.
