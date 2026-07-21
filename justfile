@@ -45,7 +45,7 @@ test: build
             -no-reboot \
             -kernel "$bin" 2>&1)
         code=$?
-        # Fail-closed: [FAIL] -> timeout -> [PASS] -> no verdict.
+        # Fail-closed: [FAIL] -> timeout -> [SKIP] -> [PASS] -> no verdict.
         if echo "$output" | grep -q '\[FAIL\]'; then
             echo "FAIL $name"
             echo "$output" | sed 's/^/    /'
@@ -53,6 +53,8 @@ test: build
         elif [ $code -eq 124 ]; then
             echo "FAIL $name (timeout)"
             failed=1
+        elif echo "$output" | grep -q '\[SKIP\]'; then
+            echo "SKIP $name (not implemented)"
         elif echo "$output" | grep -q '\[PASS\]'; then
             echo "PASS $name"
         else

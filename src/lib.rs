@@ -4,6 +4,8 @@ use core::{arch::asm, panic::PanicInfo};
 
 mod interrupt_handler;
 pub mod memory;
+pub mod mmu;
+pub mod paging;
 pub mod uart;
 
 core::arch::global_asm!(include_str!("boot.s"));

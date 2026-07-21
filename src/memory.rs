@@ -58,7 +58,36 @@ const REGIONS: [Region; 5] = [
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(u64);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(u64);
+
+impl VirtAddr {
+    pub const fn new(addr: u64) -> Self {
+        VirtAddr(addr)
+    }
+
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
+
+    pub const fn is_page_aligned(self) -> bool {
+        self.0 % PAGE_SIZE == 0
+    }
+
+    /// Which of this VA's 9-bit fields indexes the level-`level` table
+    /// (level in 0..=3)? This is the checkpoint exercise — walk
+    /// 0xFFFF_0000_4321_0FFF by hand first, then encode the bit math.
+    pub const fn table_index(self, level: usize) -> usize {
+        let _ = level;
+        todo!()
+    }
+
+    /// Bits [11:0] — the offset within the final 4KB page.
+    pub const fn page_offset(self) -> u64 {
+        todo!()
+    }
+}
 
 impl PhysAddr {
     pub const fn new(addr: u64) -> Self {
@@ -67,6 +96,10 @@ impl PhysAddr {
 
     pub const fn as_u64(self) -> u64 {
         self.0
+    }
+
+    pub const fn is_page_aligned(self) -> bool {
+        self.0 % PAGE_SIZE == 0
     }
 
     pub fn region(self) -> MemoryRegion {

@@ -16,13 +16,14 @@ and aggregates the per-image Verdicts into one suite result. The Test Harness â€
 not the kernel â€” owns the final success/failure signal.
 
 ### Verdict
-The outcome a Test Image reports for its scenario: either pass or fail. A Verdict
+The outcome a Test Image reports for its scenario: pass, fail, or skip. A Verdict
 is communicated over serial as a Marker. Absence of a Verdict (a Test Image that
 neither passes nor fails before its time runs out) is treated as a failure.
 
 ### Marker
-The distinctive serial token by which a Test Image reports its Verdict: `[PASS]`
-or `[FAIL]`.
+The distinctive serial token by which a Test Image reports its Verdict: `[PASS]`,
+`[FAIL]`, or `[SKIP]`. `[SKIP]` means the scenario is scaffolded but not yet
+implemented; the Test Harness reports it without failing the suite.
 
 ### Synchronous Exception (current EL)
 An exception taken at the same Exception Level that was already executing, caused

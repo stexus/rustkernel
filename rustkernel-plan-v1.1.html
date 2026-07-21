@@ -765,7 +765,7 @@ Granule  Table levels  TLB coverage/entry  Internal frag (1B alloc)
           <span class="ph-tag core">Core Path</span>
           <span class="ph-tag">Weeks 7–10</span>
           <span class="ph-tag">~40 hrs</span>
-          <span class="ph-tag">page tables · TLB · TTBR0/1 · TCR_EL1 · MAIR</span>
+          <span class="ph-tag">page tables · TLB · TLBI · break-before-make · TTBR0/1 · MAIR</span>
         </div>
       </div>
     </div>
@@ -784,6 +784,10 @@ Granule  Table levels  TLB coverage/entry  Internal frag (1B alloc)
       <li class="ms"><input type="checkbox" data-k="3-7"><label>Enable MMU: <code>dsb sy → isb → set SCTLR_EL1.M → dsb sy → isb</code> — get the barrier order exactly right</label></li>
       <li class="ms"><input type="checkbox" data-k="3-8"><label>Verify: UART output still works after MMU enable (confirms UART is mapped with device memory attributes)</label></li>
       <li class="ms"><input type="checkbox" data-k="3-9"><label>Handle a translation fault: decode <code>ESR_EL1</code> EC field (0b100100), print <code>FAR_EL1</code> (faulting virtual address)</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-11"><label>Implement <code>unmap_page</code> and <code>protect_page</code> (permission change) with the full invalidation recipe: PTE write → <code>dsb ishst</code> → <code>tlbi vaae1is</code> → <code>dsb ish</code> → <code>isb</code>. First do it wrong on purpose: remap a page to a different frame <em>without</em> the TLBI and watch the core keep reading the old frame through the stale TLB entry — the bug that makes the recipe unforgettable</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-12"><label>Implement break-before-make as the <em>only</em> code path for changing a live mapping: write invalid descriptor → <code>dsb</code> → <code>tlbi</code> → <code>dsb</code> → write new descriptor. Learn which changes architecturally require BBM (output address, block↔page size, memory attributes, shareability, contiguous bit — permission-only changes are exempt) and what skipping it risks: two TLB entries for one VA and a TLB conflict abort (DFSC <code>0b110000</code>)</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-13"><label>Map the kernel image with 2MB block descriptors, then split one block into 4KB pages under BBM — the large-page split dance Linux does constantly. Rule to internalize: never free or reuse a page-table page until the TLBI that disconnects it completes — the walk engine prefetches through stale table entries speculatively</label></li>
+      <li class="ms"><input type="checkbox" data-k="3-14"><label>(Stretch) Use the Access Flag as a feature: map pages with AF=0, field the Access-flag fault (distinct DFSC), set AF, return — hardware-assisted page aging for an LRU evictor. Then read about FEAT_HAFDBS and answer: once hardware updates AF/dirty bits behind your back, why must every PTE update in your kernel become an atomic RMW instead of a plain store?</label></li>
       <li class="ms"><input type="checkbox" data-k="3-10"><label>Move to a higher-half kernel: link at <code>0xFFFF_0000_0000_0000+</code>, build <code>TTBR1_EL1</code> tables, and trampoline across the switch — this frees TTBR0 entirely for user processes and is required before Phase 6's EL0 work</label></li>
     </ul>
 
@@ -817,12 +821,30 @@ VA bits:  [47:39]    [38:30]    [29:21]    [20:12]    [11:0]
       </div>
     </div>
 
+    <div class="hw-dive">
+      <div class="hw-head"><span>⚡ The TLB Is Not Coherent — Break-Before-Make, Shootdowns, ASID Rollover</span></div>
+      <div class="hw-body">
+        <p><strong>Data caches are coherent; TLBs are not.</strong> MESI keeps every core's D-cache in sync automatically, but no hardware snoops your PTE stores into anyone's TLB — TLB coherency machinery was judged too expensive in silicon. The deal the ISA offers instead: the OS announces every mapping change explicitly with <code>TLBI</code>. Forget one and nothing crashes — the core keeps translating through the stale entry, silently, and the corruption surfaces minutes later somewhere unrelated. This asymmetry (caches coherent, TLBs manual) is the single most important fact about virtual memory on multicore.</p>
+        <div class="reg"><span class="cm">The canonical mapping-change recipe (single change, all cores):</span>
+str  x0, [pte]        <span class="cm">// 1. update the descriptor</span>
+<span class="hl">dsb  ishst</span>            <span class="cm">// 2. PTE store visible to all walk engines</span>
+<span class="hl">tlbi vaae1is, x1</span>      <span class="cm">// 3. invalidate this VA, Inner Shareable = broadcast</span>
+<span class="hl">dsb  ish</span>              <span class="cm">// 4. wait until EVERY core has completed it</span>
+<span class="hl">isb</span>                   <span class="cm">// 5. resynchronize this core's pipeline</span></div>
+        <p><strong>Break-before-make:</strong> going valid→valid on a live entry is architecturally forbidden for most changes (new output address, block↔page size, attributes, shareability, contiguous bit). The reason: between your store and the TLBI, a walk can cache the <em>new</em> entry while the <em>old</em> one still sits in the TLB — two entries for one VA. The hardware's response ranges from a detectable <strong>TLB conflict abort</strong> (DFSC <code>0b110000</code>) to "amalgamated" entries that are constrained-unpredictable garbage. So you transition through invalid: break (write invalid descriptor, DSB, TLBI, DSB) then make (write the new descriptor). Any access that sneaks into the window takes a translation fault — which your fault handler must recognize as benign and retry, not panic on. That tolerance for <em>spurious faults</em> is a load-bearing part of every real VM system.</p>
+        <p><strong>TLB shootdown — what ARM's ISA does for you:</strong> on x86, invalidating a page on other cores is a software protocol: the initiator sends IPIs to every core running the address space, each core runs <code>invlpg</code> locally, the initiator spins for acks. Linux spends real engineering on batching these. AArch64 builds it into the interconnect: the <code>is</code> (Inner Shareable) suffix on <code>tlbi</code> broadcasts the invalidate as a DVM (Distributed Virtual Memory) message to every core, and the following <code>dsb ish</code> stalls until all of them confirm completion — a full cross-CPU protocol compressed into two instructions. It's not free at scale: broadcast TLBI storms hurt on 100+ core server parts, which is why FEAT_TLBIRANGE added range-invalidate instructions and why Linux still batches. Phase 7 has you build the shootdown both ways so you feel exactly what the hardware absorbed.</p>
+        <p><strong>ASID rollover and the nG bit:</strong> ASIDs make context switches cheap, but an 8-bit ASID space is only 256 live address spaces — the 257th process forces a <em>rollover</em>: bump a generation counter, flush the whole TLB, lazily reassign ASIDs (this is Linux's ASID allocator, almost verbatim). The related trap is the <strong>nG (non-Global) bit</strong> in each descriptor: kernel mappings are global (match every ASID), user mappings must be nG=1 so they match only their own ASID. Get nG wrong on a user page and another process can hit your translation in the TLB — a silent cross-process leak no fault will ever flag. Security properties living in single descriptor bits is the theme of Phase 9; it starts here.</p>
+      </div>
+    </div>
+
     <div class="ph-goal"><div class="gl">Checkpoint — Definition of Done</div>This phase is done when you can answer these from memory, not from the doc:
       <ul style="margin:8px 0 0 18px;padding:0">
         <li>Walk <code>0xFFFF_0000_4321_0FFF</code> through all four levels by hand: which 9 bits index which table?</li>
         <li>In the MMU-enable sequence, what specifically goes wrong if you drop the <code>dsb</code>? The <code>isb</code>?</li>
         <li>What does an ASID buy you on context switch, and what forces a full TLB flush anyway?</li>
         <li>Why must the UART page be Device-nGnRnE rather than Normal cacheable — what would the CPU otherwise do?</li>
+        <li>Name three mapping changes that require break-before-make, and describe what two coexisting TLB entries for one VA can do.</li>
+        <li>In the invalidation recipe, what does each of <code>dsb ishst</code>, <code>tlbi vaae1is</code>, and <code>dsb ish</code> individually guarantee — and at which point is it finally safe to free the old frame?</li>
       </ul>
     </div>
 
@@ -997,6 +1019,7 @@ SPI  (Shared Peripheral Interrupts)   <span class="hl">INTID 32+</span>    UART,
       <li class="ms"><input type="checkbox" data-k="6-4"><label>EL1 → EL0 transition: set <code>SPSR_EL1</code> to EL0 mode, set <code>ELR_EL1</code> to user entry point, execute <code>eret</code></label></li>
       <li class="ms"><input type="checkbox" data-k="6-5"><label>Handle <code>svc #0</code> from EL0: save full context (x0–x30, ELR, SPSR), dispatch syscall number, restore and <code>eret</code></label></li>
       <li class="ms"><input type="checkbox" data-k="6-6"><label>Implement <code>sys_write</code> and <code>sys_exit</code> — a user-space task that prints text and exits cleanly</label></li>
+      <li class="ms"><input type="checkbox" data-k="6-8"><label>Add <code>clrex</code> to the context-switch path: the exclusive monitor (armed by <code>ldxr</code>, Phase 7) must not survive a task switch — otherwise the incoming task's <code>stxr</code> can pair with the <em>outgoing</em> task's <code>ldxr</code> and succeed on a value it never read. One instruction, one entire class of once-a-week corruption bugs</label></li>
     </ul>
 
     <div class="sl">Key Rust Concepts</div>
@@ -1071,8 +1094,11 @@ SPI  (Shared Peripheral Interrupts)   <span class="hl">INTID 32+</span>    UART,
       <li class="ms"><input type="checkbox" data-k="7-4"><label>Implement a condition variable: <code>wait()</code>, <code>signal()</code>, <code>broadcast()</code></label></li>
       <li class="ms"><input type="checkbox" data-k="7-5"><label>Demonstrate producer-consumer: two kernel threads exchange data through a bounded queue protected by Mutex + CondVar</label></li>
       <li class="ms"><input type="checkbox" data-k="7-6"><label>Read <code>core::sync::atomic::Ordering</code> variants; map each to the corresponding AArch64 barrier instruction</label></li>
-      <li class="ms"><input type="checkbox" data-k="7-7"><label>(Stretch — make it real) Boot secondary cores: PSCI <code>CPU_ON</code> per core, per-core boot stacks, per-core GIC CPU-interface init — run QEMU with <code>-smp 4</code></label></li>
+      <li class="ms"><input type="checkbox" data-k="7-7"><label>(Stretch — make it real) Boot secondary cores: PSCI <code>CPU_ON</code> per core, per-core boot stacks, per-core GIC CPU-interface init — run QEMU with <code>-smp 4</code>. On real hardware, first clean everything the new core will read to PoC (<code>dc cvac</code>): it wakes with MMU and caches off, reading raw DRAM — not your dirty cache lines</label></li>
       <li class="ms"><input type="checkbox" data-k="7-8"><label>(Stretch) Run producer-consumer across two real cores, then deliberately delete one <code>DMB</code> and watch the data corrupt — the single most instructive bug you can give yourself</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-9"><label>(Stretch) Implement IPIs: send an SGI via <code>GICD_SGIR</code>, then build a "run this function on core N and wait for the ack" primitive — the OS's remote-control channel for everything cross-core</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-10"><label>(Stretch) TLB shootdown, both ways: unmap a page an address space is using on two cores. First the x86 way — local <code>tlbi vaae1</code>, IPI every other core, each invalidates locally and acks, initiator spins. Then the ARM way — one <code>tlbi vaae1is</code> + <code>dsb ish</code>: the interconnect broadcasts the invalidate (DVM) and the DSB waits for every core. You just watched two instructions replace an entire software protocol</label></li>
+      <li class="ms"><input type="checkbox" data-k="7-11"><label>(Stretch) Shared page tables under concurrent faults: two cores in the same address space touch the same unmapped page simultaneously. The fault handler must take a per-address-space page-table lock, and the losing core must recognize "already mapped while I waited for the lock" as a <em>spurious fault</em>: re-walk the table, return, let the instruction retry. No panic path — real kernels field these constantly</label></li>
     </ul>
 
     <div class="sl">Key Rust Concepts</div>
@@ -1120,6 +1146,7 @@ SPI  (Shared Peripheral Interrupts)   <span class="hl">INTID 32+</span>    UART,
         <li>Map <code>Acquire</code> and <code>Release</code> to LDAR/STLR: which reorderings does each forbid, in which direction?</li>
         <li>Why is a contended spinlock slow even though the atomic instruction itself is fast?</li>
         <li>What does <code>WFE</code> actually do to the core, and what race does <code>SEVL</code> close?</li>
+        <li>In a TLB shootdown, what work does <code>tlbi vaae1is</code> + <code>dsb ish</code> do that x86 must do with IPIs — and what precisely has happened on every core by the time the <code>dsb</code> retires?</li>
       </ul>
     </div>
 
@@ -1227,11 +1254,12 @@ around what's actually expensive: the guest/host transition.</div>
       <li class="ms"><input type="checkbox" data-k="9-0"><label>Build user programs as separate <code>no_std</code> crates with their own linker script (user VA base, e.g. <code>0x40_0000</code>); copy the binaries into <code>disk.img</code></label></li>
       <li class="ms"><input type="checkbox" data-k="9-1"><label>Parse ELF64 by hand: file header magic, program header table, <code>PT_LOAD</code> segments with their <code>p_vaddr</code>/<code>p_filesz</code>/<code>p_memsz</code>/<code>p_flags</code> — <code>#[repr(C)]</code> structs, no crate</label></li>
       <li class="ms"><input type="checkbox" data-k="9-2"><label>Implement <code>exec</code>: fresh TTBR0 tree, load each segment from the FS into newly allocated frames, map with permissions derived from <code>p_flags</code> — enforce W^X (writable pages never executable)</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-8"><label>Make the loaded code visible to the I-cache: after copying a <code>PT_LOAD</code> segment, <code>dc cvau</code> each cache line → <code>dsb ish</code> → <code>ic ivau</code> → <code>dsb ish</code> → <code>isb</code>. ARM's I-cache does not snoop the D-cache — skip this and on real hardware the core executes whatever stale bytes that frame held before. QEMU's TCG emulation hides the bug entirely, so treat the sequence as a correctness proof, not an experiment</label></li>
       <li class="ms"><input type="checkbox" data-k="9-3"><label>Set up the user stack (guard page below it), point <code>ELR_EL1</code> at the ELF entry point, <code>eret</code> — your first program loaded from disk runs at EL0</label></li>
       <li class="ms"><input type="checkbox" data-k="9-4"><label>Add <code>sys_exec</code>, <code>sys_exit</code>, <code>sys_wait</code>; validate every user-supplied pointer/length in syscalls before touching it — the kernel must never trust EL0</label></li>
       <li class="ms"><input type="checkbox" data-k="9-5"><label>Write a tiny shell as a user program: read a name over <code>sys_read</code>(UART), <code>sys_exec</code> it, <code>sys_wait</code> for exit — an OS you can talk to</label></li>
       <li class="ms"><input type="checkbox" data-k="9-6"><label>Prove isolation: a user program dereferencing a kernel address dies with a clean fault message; the kernel and other tasks keep running</label></li>
-      <li class="ms"><input type="checkbox" data-k="9-7"><label>(Stretch) <code>fork</code> with copy-on-write: share frames read-only, copy on the permission fault — the single most elegant trick in OS history</label></li>
+      <li class="ms"><input type="checkbox" data-k="9-7"><label>(Stretch) <code>fork</code> with copy-on-write: share frames read-only, copy on the permission fault — the single most elegant trick in OS history. Note the hard part: downgrading the parent's live pages from RW to RO must be TLB-invalidated on <em>every</em> core running the process, or a core with a stale writable entry keeps scribbling on the shared frame — Phase 7's shootdown, now load-bearing</label></li>
     </ul>
 
     <div class="sl">Key Rust Concepts</div>
