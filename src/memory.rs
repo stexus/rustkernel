@@ -103,7 +103,7 @@ const BITMAP_BITS: usize = BITMAP_WORDS * 64;
 /// `next` is the search hint that keeps `alloc` amortized O(1).
 pub struct FrameAllocator {
     bitmap: [u64; BITMAP_WORDS],
-    next: usize, // word index to begin the next search from
+    next: usize, // bit index (frame) to begin the next search from
 }
 
 impl FrameAllocator {
@@ -167,14 +167,10 @@ impl FrameAllocator {
 
     /// Allocate one free frame, or None if DRAM is full.
     pub fn alloc(&mut self) -> Option<PhysAddr> {
-        // TODO:
-        //   1. Scan words starting at `self.next`, wrapping once back to 0.
-        //   2. Skip words equal to u64::MAX (all 64 frames used).
-        //   3. In the first non-full word, the free bit is (!word).trailing_zeros().
-        //   4. set_used() it, update self.next, return frame_addr(index).
-        //   check if next is used
-        //   if it is, take it and increment next; otherwise, continue incrementing next until we
-        //   find a one, wrapping around when needed
+        // Bit scan from the `next` hint: step over used frames one bit at a
+        // time, wrapping once around the whole bitmap. Stop at the first free
+        // frame, mark it used, and park `next` one frame past it. Returns None
+        // only after a full BITMAP_BITS sweep finds nothing free.
         let mut free_idx = self.next;
         let mut count = 0;
         // Advance while frames are used; stop on the first free one.
@@ -193,12 +189,8 @@ impl FrameAllocator {
 
     /// Return a previously-allocated frame to the pool.
     pub fn free(&mut self, frame: PhysAddr) {
-        // TODO:
-        //   1. index = frame_index(frame).
-        //   2. (optional debug) assert it's currently used and frame-aligned.
-        //   3. set_free(index).
-        //   4. Lower the search hint: self.next = min(self.next, word_of(index)).
-        let _ = frame;
-        todo!()
+        let frame_idx = FrameAllocator::frame_index(frame);
+        self.set_free(frame_idx);
+        self.next = self.next.min(frame_idx);
     }
 }
